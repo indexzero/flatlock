@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install
+
+      - name: Lint JavaScript
+        run: pnpm run lint
+
+      - name: Lint Markdown
+        run: pnpm run lint:md
+
+      - name: Type check
+        run: pnpm run typecheck
+
+  test:
+    name: Test (Node ${{ matrix.node }} / ${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node: 20
+            arch: x64
+          - os: ubuntu-latest
+            node: 22
+            arch: x64
+          - os: ubuntu-24.04-arm
+            node: 20
+            arch: arm64
+          - os: ubuntu-24.04-arm
+            node: 22
+            arch: arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - run: pnpm install
+
+      - name: Run tests with coverage
+        run: pnpm run test:coverage
