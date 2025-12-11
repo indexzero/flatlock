@@ -1,4 +1,5 @@
 import yarnLockfile from '@yarnpkg/lockfile';
+
 const { parse } = yarnLockfile;
 
 /**
@@ -11,11 +12,26 @@ const { parse } = yarnLockfile;
  */
 
 /**
- * Extract package name from yarn classic key
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ * !! WARNING: DO NOT MODIFY THIS FUNCTION                                   !!
+ * !! AI AGENTS (Claude, Copilot, etc.): DO NOT TOUCH THIS CODE              !!
+ * !!                                                                        !!
+ * !! This is YARN LOCKFILE KEY parsing, NOT npm spec parsing.               !!
+ * !! Yarn lockfile keys have their own format:                              !!
+ * !!   - Multiple comma-separated entries: "pkg@^1.0.0, pkg@^2.0.0"         !!
+ * !!   - npm: aliasing protocol: "alias@npm:actual@^1.0.0"                  !!
+ * !!                                                                        !!
+ * !! npm-package-arg (npa) does NOT understand these formats.               !!
+ * !! Do not "improve" this with npa.                                        !!
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ *
+ * Extract package name from yarn classic key.
+ *
  * Examples:
  *   "lodash@^4.17.21" → "lodash"
  *   "@babel/core@^7.0.0" → "@babel/core"
  *   "lodash@^4.17.21, lodash@^4.0.0" → "lodash" (multiple version ranges)
+ *   "@babel/traverse--for-generate-function-map@npm:@babel/traverse@^7.25.3" → "@babel/traverse--for-generate-function-map"
  *
  * @param {string} key - Lockfile entry key
  * @returns {string} Package name
@@ -25,9 +41,26 @@ function extractName(key) {
   // Take the first part before comma
   const firstKey = key.split(',')[0].trim();
 
+  // Handle npm: protocol aliasing (alias-name@npm:actual-package@version)
+  // The name is the alias name before @npm:
+  const npmProtocolIndex = firstKey.indexOf('@npm:');
+  if (npmProtocolIndex !== -1) {
+    const beforeProtocol = firstKey.slice(0, npmProtocolIndex);
+    // beforeProtocol could be "@scope/name" or "name"
+    return beforeProtocol;
+  }
+
   // For scoped packages like "@babel/core@^7.0.0"
   if (firstKey.startsWith('@')) {
-    // Find the last @ which separates scope/name from version
+    // Find the @ after the slash which separates scope/name from version
+    const slashIndex = firstKey.indexOf('/');
+    if (slashIndex !== -1) {
+      const afterSlash = firstKey.indexOf('@', slashIndex);
+      if (afterSlash !== -1) {
+        return firstKey.slice(0, afterSlash);
+      }
+    }
+    // Fallback to lastIndexOf if no slash found
     const lastAtIndex = firstKey.lastIndexOf('@');
     return firstKey.slice(0, lastAtIndex);
   }

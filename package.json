@@ -30,7 +30,7 @@
   },
   "main": "src/index.js",
   "bin": {
-    "lockcmp": "./bin/lockcmp.js"
+    "flatlock-cmp": "./bin/flatlock-cmp.js"
   },
   "files": [
     "src",

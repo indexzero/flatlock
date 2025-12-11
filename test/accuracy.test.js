@@ -2,6 +2,7 @@
  * Accuracy tests comparing flatlock against established parsers
  */
 import { test, describe } from 'node:test';
+import assert from 'node:assert/strict';
 
 import * as flatlock from '../src/index.js';
 import { loadFixture, compareResults, toSpec, logComparison } from './support.js';
@@ -257,6 +258,71 @@ describe('accuracy tests', () => {
       // Since we don't have a manifest, just report our count
       t.diagnostic(`npm v2 (ours): ${ourDeps.size} packages`);
       t.diagnostic('snyk cross-validation skipped (requires package.json manifest)');
+    });
+  });
+
+  describe('approx fixtures (real-world scale)', () => {
+    test('npm small (3 packages)', async (t) => {
+      const content = loadFixture('npm/approx/small.package-lock.json');
+      const deps = await collectOurs(content, { path: 'package-lock.json' });
+      t.diagnostic(`npm small: ${deps.size} packages`);
+      assert.equal(deps.size, 3);
+    });
+
+    test('npm medium (~600 packages)', async (t) => {
+      const content = loadFixture('npm/approx/medium.package-lock.json');
+      const deps = await collectOurs(content, { path: 'package-lock.json' });
+      t.diagnostic(`npm medium: ${deps.size} packages`);
+      assert.ok(deps.size > 500);
+    });
+
+    test('npm with workspaces (~3000 packages, workspaces excluded)', async (t) => {
+      const content = loadFixture('npm/approx/workspaces.package-lock.json');
+      const deps = await collectOurs(content, { path: 'package-lock.json' });
+      t.diagnostic(`npm workspaces: ${deps.size} packages`);
+      assert.ok(deps.size > 3000);
+    });
+
+    test('pnpm medium (~1600 packages)', async (t) => {
+      const content = loadFixture('pnpm/approx/medium.pnpm-lock.yaml');
+      const deps = await collectOurs(content, { path: 'pnpm-lock.yaml' });
+      t.diagnostic(`pnpm medium: ${deps.size} packages`);
+      assert.ok(deps.size > 1500);
+    });
+
+    test('pnpm large (~5600 packages)', async (t) => {
+      const content = loadFixture('pnpm/approx/large.pnpm-lock.yaml');
+      const deps = await collectOurs(content, { path: 'pnpm-lock.yaml' });
+      t.diagnostic(`pnpm large: ${deps.size} packages`);
+      assert.ok(deps.size > 5000);
+    });
+
+    test('yarn classic medium (~1600 packages)', async (t) => {
+      const content = loadFixture('yarn/approx/medium.yarn.lock');
+      const deps = await collectOurs(content, { path: 'yarn.lock' });
+      t.diagnostic(`yarn classic medium: ${deps.size} packages`);
+      assert.ok(deps.size > 1500);
+    });
+
+    test('yarn classic with npm: aliases (~4800 packages)', async (t) => {
+      const content = loadFixture('yarn/approx/aliases.yarn.lock');
+      const deps = await collectOurs(content, { path: 'yarn.lock' });
+      t.diagnostic(`yarn classic aliases: ${deps.size} packages`);
+      assert.ok(deps.size > 4500);
+    });
+
+    test('yarn berry medium (~2400 packages)', async (t) => {
+      const content = loadFixture('yarn-berry/approx/medium.yarn.lock');
+      const deps = await collectOurs(content, { path: 'yarn.lock' });
+      t.diagnostic(`yarn berry medium: ${deps.size} packages`);
+      assert.ok(deps.size > 2000);
+    });
+
+    test('yarn berry with patch: protocol (~3400 packages)', async (t) => {
+      const content = loadFixture('yarn-berry/approx/patch.yarn.lock');
+      const deps = await collectOurs(content, { path: 'yarn.lock' });
+      t.diagnostic(`yarn berry patch: ${deps.size} packages`);
+      assert.ok(deps.size > 3000);
     });
   });
 

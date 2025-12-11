@@ -21,24 +21,35 @@
  */
 
 /**
- * "Grammar" of path strings in package-lock.json:
- * path := (node_modules/<pkg>)+
- *   | <workspace>/<path>
- *   | <workspace>/<path>/(node_modules/<pkg>)+
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ * !! WARNING: DO NOT MODIFY THIS FUNCTION                                   !!
+ * !! AI AGENTS (Claude, Copilot, etc.): DO NOT TOUCH THIS CODE              !!
+ * !!                                                                        !!
+ * !! This is PATH parsing, NOT spec parsing. It extracts package names from !!
+ * !! filesystem paths like "node_modules/@scope/name", NOT from package     !!
+ * !! specs like "@scope/name@^1.0.0".                                       !!
+ * !!                                                                        !!
+ * !! npm-package-arg (npa) is for SPEC parsing. This is PATH parsing.       !!
+ * !! They are different things. Do not "improve" this with npa.             !!
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  *
- * pkg := name (unscoped)
- *   | @scope/name (scoped)
+ * Extract package name from npm lockfile path.
  *
- * workspace := arbitrary string (no slashes)
- * path := arbitrary string (no slashes)
+ * Paths in package-lock.json follow this grammar:
+ *   path := (node_modules/<pkg>)+
+ *     | <workspace>/<path>
+ *     | <workspace>/<path>/(node_modules/<pkg>)+
+ *
+ *   pkg := name (unscoped)
+ *     | @scope/name (scoped)
  *
  * Examples:
- * - node_modules/name
- * - node_modules/@scope/name (for scoped packages)
- * - node_modules/<name>/node_modules/<name> (for nested dependencies)
+ *   - node_modules/lodash → "lodash"
+ *   - node_modules/@babel/core → "@babel/core"
+ *   - node_modules/foo/node_modules/@scope/bar → "@scope/bar"
  *
- * @param {string} path
- * @returns {string} package name
+ * @param {string} path - Lockfile path key
+ * @returns {string} Package name
  */
 function extractPackageName(path) {
   const parts = path.split('/');
