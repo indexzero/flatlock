@@ -138,8 +138,17 @@ async function getPackagesFromYarnClassic(content) {
   const { object: lockfile } = parse(content);
 
   const result = new Set();
+  let workspaceCount = 0;
   for (const [key, pkg] of Object.entries(lockfile)) {
     if (key === '__metadata') continue;
+
+    // Skip workspace/link entries - flatlock only cares about external dependencies
+    const resolved = pkg.resolved || '';
+    if (resolved.startsWith('file:') || resolved.startsWith('link:')) {
+      workspaceCount++;
+      continue;
+    }
+
     let name;
     if (key.startsWith('@')) {
       const idx = key.indexOf('@', 1);
@@ -150,7 +159,7 @@ async function getPackagesFromYarnClassic(content) {
     if (name && pkg.version) result.add(`${name}@${pkg.version}`);
   }
 
-  return { packages: result, workspaceCount: 0 };
+  return { packages: result, workspaceCount };
 }
 
 /**
@@ -161,8 +170,19 @@ async function getPackagesFromYarnBerry(content) {
   const lockfile = parse(content);
 
   const result = new Set();
+  let workspaceCount = 0;
   for (const [key, pkg] of Object.entries(lockfile)) {
     if (key === '__metadata') continue;
+
+    // Skip workspace/link entries - flatlock only cares about external dependencies
+    const resolution = pkg.resolution || '';
+    if (resolution.startsWith('workspace:') ||
+        resolution.startsWith('portal:') ||
+        resolution.startsWith('link:')) {
+      workspaceCount++;
+      continue;
+    }
+
     let name;
     if (key.startsWith('@')) {
       const idx = key.indexOf('@', 1);
@@ -173,7 +193,7 @@ async function getPackagesFromYarnBerry(content) {
     if (name && pkg.version) result.add(`${name}@${pkg.version}`);
   }
 
-  return { packages: result, workspaceCount: 0 };
+  return { packages: result, workspaceCount };
 }
 
 /**
@@ -185,13 +205,26 @@ async function getPackagesFromPnpm(content) {
   const packages = lockfile.packages || {};
 
   const result = new Set();
+  let workspaceCount = 0;
   for (const [key, pkg] of Object.entries(packages)) {
+    // Skip link/file entries - flatlock only cares about external dependencies
+    // Keys can be: link:path, file:path, or @pkg@file:path
+    if (key.startsWith('link:') || key.startsWith('file:') ||
+        key.includes('@link:') || key.includes('@file:')) {
+      workspaceCount++;
+      continue;
+    }
+    // Also skip if resolution.type is 'directory' (workspace)
+    if (pkg.resolution?.type === 'directory') {
+      workspaceCount++;
+      continue;
+    }
     // pnpm keys are like /lodash@4.17.21 or /@babel/core@7.0.0
     const match = key.match(/^\/?(@?[^@]+)@(.+)$/);
     if (match) result.add(`${match[1]}@${match[2]}`);
   }
 
-  return { packages: result, workspaceCount: 0 };
+  return { packages: result, workspaceCount };
 }
 
 /**
@@ -352,8 +385,8 @@ Options:
   -q, --quiet          Only show mismatches and summary
   -h, --help           Show this help
 
-Comparison parsers:
-  npm:          @npmcli/arborist (loadVirtual, workspaces excluded)
+Comparison parsers (workspace/link entries excluded from all):
+  npm:          @npmcli/arborist (loadVirtual)
   yarn-classic: @yarnpkg/lockfile
   yarn-berry:   @yarnpkg/parsers
   pnpm:         js-yaml
@@ -462,7 +495,7 @@ Examples:
       console.log(`  comparison total:  ${totalComparison.toString().padStart(8)} packages`);
     }
     if (totalWorkspaces > 0) {
-      console.log(`  workspaces:        ${totalWorkspaces.toString().padStart(8)} excluded (npm workspace symlinks)`);
+      console.log(`  workspaces:        ${totalWorkspaces.toString().padStart(8)} excluded (local/workspace refs)`);
     }
 
     // Exit with error if any mismatches

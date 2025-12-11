@@ -92,11 +92,13 @@ export function* fromYarnClassicLock(content, _options = {}) {
     // Check if this is a link (file: or link: protocol)
     const link = resolved?.startsWith('file:') || resolved?.startsWith('link:');
 
+    // Skip workspace/link entries - flatlock only cares about external dependencies
+    if (link) continue;
+
     if (name && version) {
       const dep = { name, version };
       if (integrity) dep.integrity = integrity;
       if (resolved) dep.resolved = resolved;
-      if (link) dep.link = true;
       yield dep;
     }
   }

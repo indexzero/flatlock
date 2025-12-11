@@ -67,27 +67,15 @@ export function* fromPnpmLock(content, _options = {}) {
     const resolved = resolution.tarball;
     const link = spec.startsWith('link:') || resolution.type === 'directory';
 
+    // Skip workspace/link entries - flatlock only cares about external dependencies
+    if (link) continue;
+
     const dep = { name, version };
     if (integrity) dep.integrity = integrity;
     if (resolved) dep.resolved = resolved;
-    if (link) dep.link = true;
     yield dep;
   }
 
-  // Also parse importers (workspace packages)
-  const importers = lockfile.importers || {};
-  for (const [_importerPath, importer] of Object.entries(importers)) {
-    // Importers are workspace packages, marked as links
-    const deps = { ...importer.dependencies, ...importer.devDependencies };
-    for (const [name, versionSpec] of Object.entries(deps)) {
-      // Parse version from spec like "link:packages/foo" or "1.2.3"
-      if (typeof versionSpec === 'string' && versionSpec.startsWith('link:')) {
-        yield {
-          name,
-          version: '0.0.0', // Workspace packages don't have a real version in lockfile
-          link: true
-        };
-      }
-    }
-  }
+  // Note: importers (workspace packages) are intentionally NOT yielded
+  // flatlock only cares about external dependencies
 }

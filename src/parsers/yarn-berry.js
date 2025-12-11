@@ -92,12 +92,13 @@ export function* fromYarnBerryLock(content, _options = {}) {
       || resolution?.startsWith('portal:')
       || resolution?.startsWith('link:');
 
+    // Skip workspace/link entries - flatlock only cares about external dependencies
+    if (link) continue;
+
     if (name && version) {
       const dep = { name, version };
       if (checksum) dep.integrity = checksum;
-      // Only include resolved for non-link packages
-      if (resolution && !link) dep.resolved = resolution;
-      if (link) dep.link = true;
+      if (resolution) dep.resolved = resolution;
       yield dep;
     }
   }

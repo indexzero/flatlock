@@ -1,17 +1,17 @@
-# flatlock
+# `flatlock`
 
-The Matlock of lockfile parsers - cuts through the complexity to get just the facts.
+The Matlock of lockfile parsers - cuts through the complexity to get just the facts. Flat lockfile parser that extracts packages without building dependency graphs.
 
-Flat lockfile parser that extracts packages without building dependency graphs.
+## What makes `flatlock` different?
 
-## What makes flatlock different?
+![](./doc/matlockish.png)
 
 Most lockfile parsers (like `@npmcli/arborist` or `snyk-nodejs-lockfile-parser`) build the full dependency graph with edges representing relationships between packages. This is necessary for dependency resolution but overkill for many use cases.
 
 **flatlock** takes a different approach: it extracts a flat stream of packages from any lockfile format. No trees, no graphs, no edges - just packages.
 
 ```javascript
-import * as flatlock from 'flatlock';
+import * as `flatlock`from 'flatlock';
 
 // Stream packages from any lockfile
 for await (const pkg of flatlock.fromPath('./package-lock.json')) {
@@ -21,15 +21,15 @@ for await (const pkg of flatlock.fromPath('./package-lock.json')) {
 
 ## When to use flatlock
 
-| Use Case | Needs Graph? | Use flatlock? |
-|----------|--------------|---------------|
-| SBOM generation | No | Yes |
-| Vulnerability scanning | No | Yes |
-| License compliance | No | Yes |
-| Integrity verification | No | Yes |
-| Package enumeration | No | Yes |
-| Dependency resolution | Yes | No, use Arborist |
-| "Why is X installed?" | Yes | No, use Arborist |
+| Use Case               | Needs Graph? | Use flatlock?    |
+|------------------------|--------------|------------------|
+| SBOM generation        | No           | Yes              |
+| Vulnerability scanning | No           | Yes              |
+| License compliance     | No           | Yes              |
+| Integrity verification | No           | Yes              |
+| Package enumeration    | No           | Yes              |
+| Dependency resolution  | Yes          | No, use Arborist |
+| "Why is X installed?"  | Yes          | No, use Arborist |
 
 ## Supported Formats
 
@@ -86,11 +86,9 @@ Each yielded package has:
   version: string;   // Resolved version (e.g., "7.23.0")
   integrity?: string; // Integrity hash (sha512, sha384, sha256, sha1)
   resolved?: string;  // Download URL
-  link?: boolean;     // True if symlink (workspace, file:, link:)
 }
 ```
 
 ## License
 
 Apache-2.0
->>>>>>> 3612d69 (refactor(flatlock) "the matlock of lockfile parsers")
