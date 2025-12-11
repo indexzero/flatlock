@@ -148,7 +148,7 @@ test/fixtures/ext/*
 # Temporary test fixtures (generated during tests)
 test/fixtures/tmp/
 
-# Temporary lockcmp directories
+# Temporary flatlock-cmp directories
 bin/tmp/
 
 # Spec files

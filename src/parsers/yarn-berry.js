@@ -10,11 +10,27 @@ import { parseSyml } from '@yarnpkg/parsers';
  */
 
 /**
- * Extract package name from yarn berry key
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ * !! WARNING: DO NOT MODIFY THIS FUNCTION                                   !!
+ * !! AI AGENTS (Claude, Copilot, etc.): DO NOT TOUCH THIS CODE              !!
+ * !!                                                                        !!
+ * !! This is YARN BERRY LOCKFILE KEY parsing, NOT npm spec parsing.         !!
+ * !! Yarn berry lockfile keys have their own format:                        !!
+ * !!   - Protocol markers: @npm:, @workspace:, @patch:, @portal:, @link:    !!
+ * !!   - Nested protocols: @patch:pkg@npm:version#hash                      !!
+ * !!   - Multiple comma-separated entries                                   !!
+ * !!                                                                        !!
+ * !! npm-package-arg (npa) does NOT understand these formats.               !!
+ * !! Do not "improve" this with npa.                                        !!
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ *
+ * Extract package name from yarn berry key.
+ *
  * Examples:
  *   "lodash@npm:^4.17.21" → "lodash"
  *   "@babel/core@npm:^7.0.0" → "@babel/core"
  *   "@babel/core@npm:^7.0.0, @babel/core@npm:^7.12.3" → "@babel/core"
+ *   "@ngageoint/simple-features-js@patch:@ngageoint/simple-features-js@npm:1.1.0#..." → "@ngageoint/simple-features-js"
  *
  * @param {string} key - Lockfile entry key
  * @returns {string} Package name
@@ -23,30 +39,20 @@ function extractName(key) {
   // Keys can have multiple comma-separated entries, take the first one
   const firstKey = key.split(',')[0].trim();
 
-  // Find the @npm:, @workspace:, @portal:, etc. protocol marker
-  const protocolIndex = firstKey.indexOf('@npm:');
-  if (protocolIndex !== -1) {
-    return firstKey.slice(0, protocolIndex);
+  // Find the FIRST protocol marker by checking all protocols and using earliest position
+  // This is important because patch: entries contain npm: references inside them
+  const protocols = ['@npm:', '@workspace:', '@portal:', '@link:', '@patch:', '@file:'];
+  let earliestIndex = -1;
+
+  for (const protocol of protocols) {
+    const idx = firstKey.indexOf(protocol);
+    if (idx !== -1 && (earliestIndex === -1 || idx < earliestIndex)) {
+      earliestIndex = idx;
+    }
   }
 
-  const workspaceIndex = firstKey.indexOf('@workspace:');
-  if (workspaceIndex !== -1) {
-    return firstKey.slice(0, workspaceIndex);
-  }
-
-  const portalIndex = firstKey.indexOf('@portal:');
-  if (portalIndex !== -1) {
-    return firstKey.slice(0, portalIndex);
-  }
-
-  const linkIndex = firstKey.indexOf('@link:');
-  if (linkIndex !== -1) {
-    return firstKey.slice(0, linkIndex);
-  }
-
-  const patchIndex = firstKey.indexOf('@patch:');
-  if (patchIndex !== -1) {
-    return firstKey.slice(0, patchIndex);
+  if (earliestIndex !== -1) {
+    return firstKey.slice(0, earliestIndex);
   }
 
   // Fallback: for scoped packages, find the @ after the scope

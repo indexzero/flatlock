@@ -340,11 +340,11 @@ async function main() {
   });
 
   if (values.help) {
-    console.log(`lockcmp - Compare flatlock against established parsers
+    console.log(`flatlock-cmp - Compare flatlock against established parsers
 
 Usage:
-  lockcmp [files...]
-  lockcmp --dir <dir> [--glob <pattern>]
+  flatlock-cmp [files...]
+  flatlock-cmp --dir <dir> [--glob <pattern>]
 
 Options:
   -d, --dir <path>     Directory to scan
@@ -353,16 +353,16 @@ Options:
   -h, --help           Show this help
 
 Comparison parsers:
-  npm:          @npmcli/arborist (loadVirtual)
+  npm:          @npmcli/arborist (loadVirtual, workspaces excluded)
   yarn-classic: @yarnpkg/lockfile
   yarn-berry:   @yarnpkg/parsers
   pnpm:         js-yaml
 
 Examples:
-  lockcmp package-lock.json
-  lockcmp --dir test/fixtures/ext --glob "**/*package-lock*"
-  lockcmp --dir test/fixtures/ext --glob "**/*yarn.lock*"
-  lockcmp --dir test/fixtures/ext --glob "**/*pnpm-lock.yaml*"`);
+  flatlock-cmp package-lock.json
+  flatlock-cmp --dir path/to/your/locker-room --glob "**/*package-lock*"
+  flatlock-cmp --dir path/to/your/locker-room --glob "**/*yarn.lock*"
+  flatlock-cmp --dir path/to/your/locker-room --glob "**/*pnpm-lock*"`);
     process.exit(0);
   }
 
