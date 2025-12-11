@@ -11,13 +11,13 @@
     "yarn",
     "yarn-berry"
   ],
-  "homepage": "https://github.com/user/flatlock#readme",
+  "homepage": "https://github.com/indexzero/flatlock#readme",
   "bugs": {
-    "url": "https://github.com/user/flatlock/issues"
+    "url": "https://github.com/indexzero/flatlock/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/user/flatlock.git"
+    "url": "git+https://github.com/indexzero/flatlock.git"
   },
   "license": "Apache-2.0",
   "author": "Charlie Robbins <npm@charlie.dev>",
