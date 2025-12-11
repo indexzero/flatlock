@@ -29,13 +29,16 @@
     }
   },
   "main": "src/index.js",
+  "bin": {
+    "lockcmp": "./bin/lockcmp.js"
+  },
   "files": [
     "src",
-    "dist"
+    "dist",
+    "bin"
   ],
   "scripts": {
     "test": "node --test ./test/*.test.js",
-    "test:benchmark": "node --test ./test/benchmark/*.test.js",
     "test:coverage": "c8 node --test ./test/*.test.js",
     "typecheck": "tsc --noEmit",
     "build:types": "tsc",

@@ -145,6 +145,12 @@ vite.config.ts.timestamp-*
 test/fixtures/ext/*
 !test/fixtures/ext/.gitkeep
 
+# Temporary test fixtures (generated during tests)
+test/fixtures/tmp/
+
+# Temporary lockcmp directories
+bin/tmp/
+
 # Spec files
 PLAN.md
 IMPLEMENTATION.md

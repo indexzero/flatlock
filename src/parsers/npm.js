@@ -8,15 +8,46 @@
  */
 
 /**
- * Extract package name from node_modules path
- * @param {string} path - Path like "node_modules/@babel/core" or "node_modules/lodash"
- * @returns {string} Package name like "@babel/core" or "lodash"
+ * LIMITATION: Workspace symlinks are not yielded
+ *
+ * npm workspaces create two entries in package-lock.json:
+ *   1. packages/<workspace-path> → has version (workspace definition)
+ *   2. node_modules/<pkg-name> → link:true, NO version (symlink to #1)
+ *
+ * Arborist resolves #2 to get version from #1. This parser does not.
+ * Entries with link:true but no version are skipped.
+ *
+ * To include workspace packages, users should use @npmcli/arborist directly.
  */
-function extractNameFromPath(path) {
-  // Handle nested node_modules by taking the last segment
-  // "node_modules/a/node_modules/b" → "b"
-  const parts = path.split('node_modules/');
-  return parts[parts.length - 1];
+
+/**
+ * "Grammar" of path strings in package-lock.json:
+ * path := (node_modules/<pkg>)+
+ *   | <workspace>/<path>
+ *   | <workspace>/<path>/(node_modules/<pkg>)+
+ *
+ * pkg := name (unscoped)
+ *   | @scope/name (scoped)
+ *
+ * workspace := arbitrary string (no slashes)
+ * path := arbitrary string (no slashes)
+ *
+ * Examples:
+ * - node_modules/name
+ * - node_modules/@scope/name (for scoped packages)
+ * - node_modules/<name>/node_modules/<name> (for nested dependencies)
+ *
+ * @param {string} path
+ * @returns {string} package name
+ */
+function extractPackageName(path) {
+  const parts = path.split('/');
+  const name = parts.at(-1);
+  const maybeScope = parts.at(-2);
+
+  return maybeScope?.startsWith('@')
+    ? `${maybeScope}/${name}`
+    : name;
 }
 
 /**
@@ -33,7 +64,13 @@ export function* fromPackageLock(content, _options = {}) {
     // Skip root package
     if (path === '') continue;
 
-    const name = extractNameFromPath(path);
+    // Skip workspace definitions (only yield installed dependencies)
+    // Workspace entries come in pairs:
+    //   1. packages/<workspace-path> → has version (workspace definition)
+    //   2. node_modules/<workspace-package.json-name> → link, NO version (symlink)
+    if (!path.includes('node_modules/')) continue;
+
+    const name = extractPackageName(path);
     const { version, integrity, resolved, link } = pkg;
 
     // Only yield if we have a name and version
