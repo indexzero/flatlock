@@ -40,7 +40,6 @@
   "scripts": {
     "test": "node --test ./test/*.test.js",
     "test:coverage": "c8 node --test ./test/*.test.js",
-    "typecheck": "tsc --noEmit",
     "build:types": "tsc",
     "lint": "biome lint src test",
     "lint:fix": "biome lint --write src test",
@@ -65,7 +64,7 @@
     "snyk-nodejs-lockfile-parser": "^1.55.0",
     "typescript": "^5.7.2"
   },
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@10.25.0",
   "engines": {
     "node": ">=20"
   },

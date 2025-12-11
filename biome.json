@@ -7,7 +7,14 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!**/scratch/**", "!**/node_modules/**", "!**/dist/**"]
+    "includes": [
+      "**",
+      "!**/scratch/**",
+      "!**/node_modules/**",
+      "!**/dist/**",
+      "!**/test/fixtures/**",
+      "!**/test/decoded/**"
+    ]
   },
   "formatter": {
     "enabled": true,

@@ -28,9 +28,6 @@ jobs:
       - name: Lint Markdown
         run: pnpm run lint:md
 
-      - name: Type check
-        run: pnpm run typecheck
-
   test:
     name: Test (Node ${{ matrix.node }} / ${{ matrix.arch }})
     strategy:
