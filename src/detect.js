@@ -1,6 +1,6 @@
-import yaml from 'js-yaml';
-import { parseSyml } from '@yarnpkg/parsers';
 import yarnLockfile from '@yarnpkg/lockfile';
+import { parseSyml } from '@yarnpkg/parsers';
+import yaml from 'js-yaml';
 
 /**
  * @typedef {'npm' | 'pnpm' | 'yarn-classic' | 'yarn-berry'} LockfileType

@@ -50,7 +50,7 @@
     "lint:md": "markdownlint-cli2 \"README.md\"",
     "format": "biome format --write src test",
     "format:check": "biome format src test",
-    "check": "biome check src test",
+    "check": "biome check src test && pnpm run build:types",
     "check:fix": "biome check --write src test",
     "prepublishOnly": "pnpm run build:types"
   },

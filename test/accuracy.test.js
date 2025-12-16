@@ -1,11 +1,11 @@
 /**
  * Accuracy tests comparing flatlock against established parsers
  */
-import { test, describe } from 'node:test';
-import assert from 'node:assert/strict';
+
+import { describe, test } from 'node:test';
 
 import * as flatlock from '../src/index.js';
-import { loadFixture, compareResults, toSpec, logComparison } from './support.js';
+import { compareResults, loadFixture, logComparison, toSpec } from './support.js';
 
 /**
  * Collect all dependencies from our parser
@@ -49,7 +49,9 @@ describe('accuracy tests', () => {
       logComparison('npm v2 vs Arborist-style parsing', arboristDeps.size, ourDeps.size, results);
 
       // Log result but don't fail - differences are expected
-      t.diagnostic(`npm v2: arborist=${arboristDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`);
+      t.diagnostic(
+        `npm v2: arborist=${arboristDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
 
     test('v3 lockfile - compare against @npmcli/arborist', async (t) => {
@@ -72,7 +74,9 @@ describe('accuracy tests', () => {
       const results = compareResults(expectedDeps, ourDeps);
       logComparison('npm v3 vs direct parsing', expectedDeps.size, ourDeps.size, results);
 
-      t.diagnostic(`npm v3: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`);
+      t.diagnostic(
+        `npm v3: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
   });
 
@@ -103,7 +107,9 @@ describe('accuracy tests', () => {
       const results = compareResults(expectedDeps, ourDeps);
       logComparison('pnpm v6 vs direct yaml parsing', expectedDeps.size, ourDeps.size, results);
 
-      t.diagnostic(`pnpm v6: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`);
+      t.diagnostic(
+        `pnpm v6: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
 
     test('v9 lockfile - compare against @pnpm/lockfile-file', async (t) => {
@@ -130,7 +136,9 @@ describe('accuracy tests', () => {
       const results = compareResults(expectedDeps, ourDeps);
       logComparison('pnpm v9 vs direct yaml parsing', expectedDeps.size, ourDeps.size, results);
 
-      t.diagnostic(`pnpm v9: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`);
+      t.diagnostic(
+        `pnpm v9: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
   });
 
@@ -170,7 +178,9 @@ describe('accuracy tests', () => {
       const results = compareResults(expectedDeps, ourDeps);
       logComparison('yarn classic vs @yarnpkg/lockfile', expectedDeps.size, ourDeps.size, results);
 
-      t.diagnostic(`yarn classic: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`);
+      t.diagnostic(
+        `yarn classic: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
   });
 
@@ -209,7 +219,9 @@ describe('accuracy tests', () => {
       const results = compareResults(expectedDeps, ourDeps);
       logComparison('yarn berry v5 vs @yarnpkg/parsers', expectedDeps.size, ourDeps.size, results);
 
-      t.diagnostic(`yarn berry v5: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`);
+      t.diagnostic(
+        `yarn berry v5: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
 
     test('v8 lockfile - compare against @yarnpkg/parsers', async (t) => {
@@ -244,7 +256,9 @@ describe('accuracy tests', () => {
       const results = compareResults(expectedDeps, ourDeps);
       logComparison('yarn berry v8 vs @yarnpkg/parsers', expectedDeps.size, ourDeps.size, results);
 
-      t.diagnostic(`yarn berry v8: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`);
+      t.diagnostic(
+        `yarn berry v8: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
   });
 
@@ -270,7 +284,7 @@ describe('accuracy tests', () => {
         { path: 'pnpm/pnpm-lock.yaml.v9', name: 'pnpm v9', hint: 'pnpm-lock.yaml' },
         { path: 'yarn/yarn.lock', name: 'yarn classic', hint: 'yarn.lock' },
         { path: 'yarn-berry/yarn.lock.v5', name: 'yarn berry v5', hint: 'yarn.lock' },
-        { path: 'yarn-berry/yarn.lock.v8', name: 'yarn berry v8', hint: 'yarn.lock' },
+        { path: 'yarn-berry/yarn.lock.v8', name: 'yarn berry v8', hint: 'yarn.lock' }
       ];
 
       console.log('\n=== Fixture Summary ===');

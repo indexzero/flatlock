@@ -1,5 +1,5 @@
-import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { describe, test } from 'node:test';
 import * as flatlock from '../src/index.js';
 import { loadFixture } from './support.js';
 
@@ -138,7 +138,7 @@ packages:
     test('malformed JSON with lockfileVersion string is not detected as npm', () => {
       // lockfileVersion must be a NUMBER for npm
       const content = JSON.stringify({
-        lockfileVersion: '3',  // string, not number
+        lockfileVersion: '3', // string, not number
         packages: {}
       });
       // This should NOT be detected as npm since lockfileVersion is a string

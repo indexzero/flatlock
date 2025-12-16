@@ -1,12 +1,12 @@
 import { readFile } from 'node:fs/promises';
-import { Type, detectType } from './detect.js';
-import { Ok, Err } from './result.js';
+import { detectType, Type } from './detect.js';
 import {
   fromPackageLock,
   fromPnpmLock,
-  fromYarnClassicLock,
-  fromYarnBerryLock
+  fromYarnBerryLock,
+  fromYarnClassicLock
 } from './parsers/index.js';
+import { Err, Ok } from './result.js';
 
 /** @typedef {import('./detect.js').LockfileType} LockfileType */
 /** @typedef {import('./parsers/npm.js').Dependency} Dependency */
@@ -150,6 +150,6 @@ export async function collect(pathOrContent, options = {}) {
 export {
   parseNpmKey,
   parsePnpmKey,
-  parseYarnClassicKey,
-  parseYarnBerryKey
+  parseYarnBerryKey,
+  parseYarnClassicKey
 } from './parsers/index.js';

@@ -1,12 +1,12 @@
-import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import Arborist from '@npmcli/arborist';
 import yarnLockfile from '@yarnpkg/lockfile';
 import { parseSyml } from '@yarnpkg/parsers';
 import yaml from 'js-yaml';
-import { fromPath, detectType, Type } from './index.js';
-import { parseYarnClassicKey, parseYarnBerryKey } from './parsers/index.js';
+import { detectType, fromPath, Type } from './index.js';
+import { parseYarnBerryKey, parseYarnClassicKey } from './parsers/index.js';
 import { parseSpec as parsePnpmSpec } from './parsers/pnpm.js';
 
 /**
@@ -39,9 +39,8 @@ import { parseSpec as parsePnpmSpec } from './parsers/pnpm.js';
  * @returns {Promise<PackagesResult>}
  */
 async function getPackagesFromNpm(content, _filepath, options = {}) {
-
   // Arborist needs a directory with package-lock.json
-  const tmpDir = options.tmpDir || await mkdtemp(join(tmpdir(), 'flatlock-cmp-'));
+  const tmpDir = options.tmpDir || (await mkdtemp(join(tmpdir(), 'flatlock-cmp-')));
   const lockPath = join(tmpDir, 'package-lock.json');
   const pkgPath = join(tmpDir, 'package.json');
 
@@ -141,9 +140,11 @@ async function getPackagesFromYarnBerry(content) {
 
     // Skip workspace/link entries - flatlock only cares about external dependencies
     const resolution = value.resolution || '';
-    if (resolution.startsWith('workspace:') ||
-        resolution.startsWith('portal:') ||
-        resolution.startsWith('link:')) {
+    if (
+      resolution.startsWith('workspace:') ||
+      resolution.startsWith('portal:') ||
+      resolution.startsWith('link:')
+    ) {
       workspaceCount++;
       continue;
     }
@@ -173,8 +174,12 @@ async function getPackagesFromPnpm(content) {
   for (const [key, value] of Object.entries(pkgs)) {
     // Skip link/file entries - flatlock only cares about external dependencies
     // Keys can be: link:path, file:path, or @pkg@file:path
-    if (key.startsWith('link:') || key.startsWith('file:') ||
-        key.includes('@link:') || key.includes('@file:')) {
+    if (
+      key.startsWith('link:') ||
+      key.startsWith('file:') ||
+      key.includes('@link:') ||
+      key.includes('@file:')
+    ) {
       workspaceCount++;
       continue;
     }

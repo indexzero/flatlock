@@ -1,11 +1,12 @@
 /**
  * Tests for the compare module
  */
-import { test, describe, before, after } from 'node:test';
+
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, test } from 'node:test';
 
 import { compare, compareAll } from '../src/compare.js';
 import { Type } from '../src/index.js';
@@ -66,7 +67,9 @@ describe('compare module', () => {
       assert.ok(result.comparisonCount > 0, 'should have comparison packages');
 
       // Log diagnostic info
-      console.log(`  npm v2: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`);
+      console.log(
+        `  npm v2: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`
+      );
       if (!result.identical) {
         console.log(`    onlyInFlatlock: ${result.onlyInFlatlock.slice(0, 3).join(', ')}`);
         console.log(`    onlyInComparison: ${result.onlyInComparison.slice(0, 3).join(', ')}`);
@@ -84,77 +87,79 @@ describe('compare module', () => {
       assert.ok(result.flatlockCount > 0, 'should have parsed packages');
       assert.ok(result.comparisonCount > 0, 'should have comparison packages');
 
-      console.log(`  npm v3: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`);
+      console.log(
+        `  npm v3: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`
+      );
     });
 
     test('pnpm v6 lockfile comparison produces valid results', async () => {
-      const result = await withTempFixture(
-        'pnpm/pnpm-lock.yaml.v6',
-        'pnpm-lock.yaml',
-        (filepath) => compare(filepath)
+      const result = await withTempFixture('pnpm/pnpm-lock.yaml.v6', 'pnpm-lock.yaml', (filepath) =>
+        compare(filepath)
       );
 
       assert.equal(result.type, Type.PNPM);
       assert.ok(result.flatlockCount > 0, 'should have parsed packages');
       assert.ok(result.comparisonCount > 0, 'should have comparison packages');
 
-      console.log(`  pnpm v6: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`);
+      console.log(
+        `  pnpm v6: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`
+      );
     });
 
     test('pnpm v9 lockfile comparison produces valid results', async () => {
-      const result = await withTempFixture(
-        'pnpm/pnpm-lock.yaml.v9',
-        'pnpm-lock.yaml',
-        (filepath) => compare(filepath)
+      const result = await withTempFixture('pnpm/pnpm-lock.yaml.v9', 'pnpm-lock.yaml', (filepath) =>
+        compare(filepath)
       );
 
       assert.equal(result.type, Type.PNPM);
       assert.ok(result.flatlockCount > 0, 'should have parsed packages');
       assert.ok(result.comparisonCount > 0, 'should have comparison packages');
 
-      console.log(`  pnpm v9: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`);
+      console.log(
+        `  pnpm v9: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`
+      );
     });
 
     test('yarn classic lockfile comparison produces valid results', async () => {
-      const result = await withTempFixture(
-        'yarn/yarn.lock',
-        'yarn.lock',
-        (filepath) => compare(filepath)
+      const result = await withTempFixture('yarn/yarn.lock', 'yarn.lock', (filepath) =>
+        compare(filepath)
       );
 
       assert.equal(result.type, Type.YARN_CLASSIC);
       assert.ok(result.flatlockCount > 0, 'should have parsed packages');
       assert.ok(result.comparisonCount > 0, 'should have comparison packages');
 
-      console.log(`  yarn classic: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`);
+      console.log(
+        `  yarn classic: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`
+      );
     });
 
     test('yarn berry v5 lockfile comparison produces valid results', async () => {
-      const result = await withTempFixture(
-        'yarn-berry/yarn.lock.v5',
-        'yarn.lock',
-        (filepath) => compare(filepath)
+      const result = await withTempFixture('yarn-berry/yarn.lock.v5', 'yarn.lock', (filepath) =>
+        compare(filepath)
       );
 
       assert.equal(result.type, Type.YARN_BERRY);
       assert.ok(result.flatlockCount > 0, 'should have parsed packages');
       assert.ok(result.comparisonCount > 0, 'should have comparison packages');
 
-      console.log(`  yarn berry v5: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`);
+      console.log(
+        `  yarn berry v5: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`
+      );
     });
 
     test('yarn berry v8 lockfile comparison produces valid results', async () => {
-      const result = await withTempFixture(
-        'yarn-berry/yarn.lock.v8',
-        'yarn.lock',
-        (filepath) => compare(filepath)
+      const result = await withTempFixture('yarn-berry/yarn.lock.v8', 'yarn.lock', (filepath) =>
+        compare(filepath)
       );
 
       assert.equal(result.type, Type.YARN_BERRY);
       assert.ok(result.flatlockCount > 0, 'should have parsed packages');
       assert.ok(result.comparisonCount > 0, 'should have comparison packages');
 
-      console.log(`  yarn berry v8: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`);
+      console.log(
+        `  yarn berry v8: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`
+      );
     });
 
     test('returns null identical for unknown type', async () => {
@@ -229,10 +234,8 @@ describe('compare module', () => {
     });
 
     test('excludes workspace packages from yarn comparison', async () => {
-      const result = await withTempFixture(
-        'yarn/yarn.lock',
-        'yarn.lock',
-        (filepath) => compare(filepath)
+      const result = await withTempFixture('yarn/yarn.lock', 'yarn.lock', (filepath) =>
+        compare(filepath)
       );
 
       assert.equal(typeof result.workspaceCount, 'number');
@@ -240,10 +243,8 @@ describe('compare module', () => {
     });
 
     test('excludes workspace packages from pnpm comparison', async () => {
-      const result = await withTempFixture(
-        'pnpm/pnpm-lock.yaml.v6',
-        'pnpm-lock.yaml',
-        (filepath) => compare(filepath)
+      const result = await withTempFixture('pnpm/pnpm-lock.yaml.v6', 'pnpm-lock.yaml', (filepath) =>
+        compare(filepath)
       );
 
       assert.equal(typeof result.workspaceCount, 'number');
