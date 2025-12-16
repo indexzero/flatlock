@@ -36,7 +36,7 @@ const { parse } = yarnLockfile;
  * @param {string} key - Lockfile entry key
  * @returns {string} Package name
  */
-function extractName(key) {
+export function parseLockfileKey(key) {
   // Keys can have multiple version ranges: "pkg@^1.0.0, pkg@^2.0.0"
   // Take the first part before comma
   const firstKey = key.split(',')[0].trim();
@@ -86,7 +86,7 @@ export function* fromYarnClassicLock(content, _options = {}) {
   const lockfile = parsed.object;
 
   for (const [key, pkg] of Object.entries(lockfile)) {
-    const name = extractName(key);
+    const name = parseLockfileKey(key);
     const { version, integrity, resolved } = pkg;
 
     // Check if this is a link (file: or link: protocol)

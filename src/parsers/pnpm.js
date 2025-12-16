@@ -19,7 +19,8 @@ import yaml from 'js-yaml';
  * @param {string} spec - Package spec from pnpm lockfile
  * @returns {{ name: string | null, version: string | null }}
  */
-function parseSpec(spec) {
+// Internal function - also exported for compare.js (not part of public API)
+export function parseSpec(spec) {
   // Skip special protocols
   if (spec.startsWith('link:') || spec.startsWith('file:')) {
     return { name: null, version: null };
@@ -44,6 +45,17 @@ function parseSpec(spec) {
   const version = versionPart.split('(')[0];
 
   return { name, version };
+}
+
+/**
+ * Extract package name from pnpm lockfile key.
+ * Wraps parseSpec to return just the name (consistent with other parsers).
+ *
+ * @param {string} key - pnpm lockfile key
+ * @returns {string | null} Package name
+ */
+export function parseLockfileKey(key) {
+  return parseSpec(key).name;
 }
 
 /**

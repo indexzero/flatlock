@@ -51,7 +51,7 @@
  * @param {string} path - Lockfile path key
  * @returns {string} Package name
  */
-function extractPackageName(path) {
+export function parseLockfileKey(path) {
   const parts = path.split('/');
   const name = parts.at(-1);
   const maybeScope = parts.at(-2);
@@ -81,7 +81,7 @@ export function* fromPackageLock(content, _options = {}) {
     //   2. node_modules/<workspace-package.json-name> → link, NO version (symlink)
     if (!path.includes('node_modules/')) continue;
 
-    const name = extractPackageName(path);
+    const name = parseLockfileKey(path);
     const { version, integrity, resolved, link } = pkg;
 
     // Only yield if we have a name and version
