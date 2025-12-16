@@ -80,9 +80,15 @@ export function logComparison(label, expectedCount, actualCount, results) {
   console.log(`  Accuracy:     ${formatAccuracy(results.accuracy)}`);
 
   if (results.onlyInExpected.length > 0) {
-    console.log(`  Missing (${results.onlyInExpected.length}):`, results.onlyInExpected.slice(0, 3).join(', '));
+    console.log(
+      `  Missing (${results.onlyInExpected.length}):`,
+      results.onlyInExpected.slice(0, 3).join(', ')
+    );
   }
   if (results.onlyInActual.length > 0) {
-    console.log(`  Extra (${results.onlyInActual.length}):`, results.onlyInActual.slice(0, 3).join(', '));
+    console.log(
+      `  Extra (${results.onlyInActual.length}):`,
+      results.onlyInActual.slice(0, 3).join(', ')
+    );
   }
 }

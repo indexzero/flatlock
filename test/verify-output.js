@@ -14,7 +14,8 @@ const content = JSON.stringify({
       name: 'lodash',
       version: '4.17.21',
       resolved: 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz',
-      integrity: 'sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg=='
+      integrity:
+        'sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg=='
     },
     'node_modules/@babel/core': {
       name: '@babel/core',

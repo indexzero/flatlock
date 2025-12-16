@@ -20,7 +20,7 @@ async function collectOurs(content, options = {}) {
 
 describe('accuracy tests', () => {
   describe('npm (package-lock.json)', () => {
-    test('v2 lockfile - compare against @npmcli/arborist', async (t) => {
+    test('v2 lockfile - compare against @npmcli/arborist', async t => {
       const content = loadFixture('npm/package-lock.json.v2');
 
       // Our parser
@@ -54,7 +54,7 @@ describe('accuracy tests', () => {
       );
     });
 
-    test('v3 lockfile - compare against @npmcli/arborist', async (t) => {
+    test('v3 lockfile - compare against @npmcli/arborist', async t => {
       const content = loadFixture('npm/package-lock.json.v3');
 
       const ourDeps = await collectOurs(content, { path: 'package-lock.json' });
@@ -81,7 +81,7 @@ describe('accuracy tests', () => {
   });
 
   describe('pnpm (pnpm-lock.yaml)', () => {
-    test('v6 lockfile - compare against @pnpm/lockfile-file', async (t) => {
+    test('v6 lockfile - compare against @pnpm/lockfile-file', async t => {
       const content = loadFixture('pnpm/pnpm-lock.yaml.v6');
 
       const ourDeps = await collectOurs(content, { path: 'pnpm-lock.yaml' });
@@ -112,7 +112,7 @@ describe('accuracy tests', () => {
       );
     });
 
-    test('v9 lockfile - compare against @pnpm/lockfile-file', async (t) => {
+    test('v9 lockfile - compare against @pnpm/lockfile-file', async t => {
       const content = loadFixture('pnpm/pnpm-lock.yaml.v9');
 
       const ourDeps = await collectOurs(content, { path: 'pnpm-lock.yaml' });
@@ -143,7 +143,7 @@ describe('accuracy tests', () => {
   });
 
   describe('yarn classic (yarn.lock v1)', () => {
-    test('compare against @yarnpkg/lockfile', async (t) => {
+    test('compare against @yarnpkg/lockfile', async t => {
       const content = loadFixture('yarn/yarn.lock');
 
       const ourDeps = await collectOurs(content, { path: 'yarn.lock' });
@@ -185,7 +185,7 @@ describe('accuracy tests', () => {
   });
 
   describe('yarn berry (yarn.lock v2+)', () => {
-    test('v5 lockfile - compare against @yarnpkg/parsers', async (t) => {
+    test('v5 lockfile - compare against @yarnpkg/parsers', async t => {
       const content = loadFixture('yarn-berry/yarn.lock.v5');
 
       const ourDeps = await collectOurs(content, { path: 'yarn.lock' });
@@ -224,7 +224,7 @@ describe('accuracy tests', () => {
       );
     });
 
-    test('v8 lockfile - compare against @yarnpkg/parsers', async (t) => {
+    test('v8 lockfile - compare against @yarnpkg/parsers', async t => {
       const content = loadFixture('yarn-berry/yarn.lock.v8');
 
       const ourDeps = await collectOurs(content, { path: 'yarn.lock' });
@@ -263,7 +263,7 @@ describe('accuracy tests', () => {
   });
 
   describe('cross-validation with snyk-nodejs-lockfile-parser', () => {
-    test('npm lockfile cross-validation', async (t) => {
+    test('npm lockfile cross-validation', async t => {
       const content = loadFixture('npm/package-lock.json.v2');
 
       const ourDeps = await collectOurs(content, { path: 'package-lock.json' });
@@ -276,7 +276,7 @@ describe('accuracy tests', () => {
   });
 
   describe('summary', () => {
-    test('all fixtures parsed successfully', async (t) => {
+    test('all fixtures parsed successfully', async t => {
       const fixtures = [
         { path: 'npm/package-lock.json.v2', name: 'npm v2', hint: 'package-lock.json' },
         { path: 'npm/package-lock.json.v3', name: 'npm v3', hint: 'package-lock.json' },

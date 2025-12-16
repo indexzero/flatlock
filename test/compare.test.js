@@ -33,7 +33,7 @@ describe('compare module', () => {
       const result = await withTempFixture(
         'npm/package-lock.json.v2',
         'package-lock.json',
-        (filepath) => compare(filepath)
+        filepath => compare(filepath)
       );
 
       // Verify structure
@@ -59,7 +59,7 @@ describe('compare module', () => {
       const result = await withTempFixture(
         'npm/package-lock.json.v2',
         'package-lock.json',
-        (filepath) => compare(filepath)
+        filepath => compare(filepath)
       );
 
       assert.equal(result.type, Type.NPM);
@@ -80,7 +80,7 @@ describe('compare module', () => {
       const result = await withTempFixture(
         'npm/package-lock.json.v3',
         'package-lock.json',
-        (filepath) => compare(filepath)
+        filepath => compare(filepath)
       );
 
       assert.equal(result.type, Type.NPM);
@@ -93,7 +93,7 @@ describe('compare module', () => {
     });
 
     test('pnpm v6 lockfile comparison produces valid results', async () => {
-      const result = await withTempFixture('pnpm/pnpm-lock.yaml.v6', 'pnpm-lock.yaml', (filepath) =>
+      const result = await withTempFixture('pnpm/pnpm-lock.yaml.v6', 'pnpm-lock.yaml', filepath =>
         compare(filepath)
       );
 
@@ -107,7 +107,7 @@ describe('compare module', () => {
     });
 
     test('pnpm v9 lockfile comparison produces valid results', async () => {
-      const result = await withTempFixture('pnpm/pnpm-lock.yaml.v9', 'pnpm-lock.yaml', (filepath) =>
+      const result = await withTempFixture('pnpm/pnpm-lock.yaml.v9', 'pnpm-lock.yaml', filepath =>
         compare(filepath)
       );
 
@@ -121,7 +121,7 @@ describe('compare module', () => {
     });
 
     test('yarn classic lockfile comparison produces valid results', async () => {
-      const result = await withTempFixture('yarn/yarn.lock', 'yarn.lock', (filepath) =>
+      const result = await withTempFixture('yarn/yarn.lock', 'yarn.lock', filepath =>
         compare(filepath)
       );
 
@@ -135,7 +135,7 @@ describe('compare module', () => {
     });
 
     test('yarn berry v5 lockfile comparison produces valid results', async () => {
-      const result = await withTempFixture('yarn-berry/yarn.lock.v5', 'yarn.lock', (filepath) =>
+      const result = await withTempFixture('yarn-berry/yarn.lock.v5', 'yarn.lock', filepath =>
         compare(filepath)
       );
 
@@ -149,7 +149,7 @@ describe('compare module', () => {
     });
 
     test('yarn berry v8 lockfile comparison produces valid results', async () => {
-      const result = await withTempFixture('yarn-berry/yarn.lock.v8', 'yarn.lock', (filepath) =>
+      const result = await withTempFixture('yarn-berry/yarn.lock.v8', 'yarn.lock', filepath =>
         compare(filepath)
       );
 
@@ -167,10 +167,7 @@ describe('compare module', () => {
       const tmpFile = join(tmpDir, 'unknown.txt');
       try {
         await writeFile(tmpFile, 'not a lockfile');
-        await assert.rejects(
-          compare(tmpFile),
-          /Unable to detect lockfile type/
-        );
+        await assert.rejects(compare(tmpFile), /Unable to detect lockfile type/);
       } finally {
         await rm(tmpDir, { recursive: true, force: true });
       }
@@ -226,7 +223,7 @@ describe('compare module', () => {
       const result = await withTempFixture(
         'npm/package-lock.json.v2',
         'package-lock.json',
-        (filepath) => compare(filepath)
+        filepath => compare(filepath)
       );
 
       assert.equal(typeof result.workspaceCount, 'number');
@@ -234,7 +231,7 @@ describe('compare module', () => {
     });
 
     test('excludes workspace packages from yarn comparison', async () => {
-      const result = await withTempFixture('yarn/yarn.lock', 'yarn.lock', (filepath) =>
+      const result = await withTempFixture('yarn/yarn.lock', 'yarn.lock', filepath =>
         compare(filepath)
       );
 
@@ -243,7 +240,7 @@ describe('compare module', () => {
     });
 
     test('excludes workspace packages from pnpm comparison', async () => {
-      const result = await withTempFixture('pnpm/pnpm-lock.yaml.v6', 'pnpm-lock.yaml', (filepath) =>
+      const result = await withTempFixture('pnpm/pnpm-lock.yaml.v6', 'pnpm-lock.yaml', filepath =>
         compare(filepath)
       );
 
