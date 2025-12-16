@@ -35,7 +35,7 @@ import { parseSyml } from '@yarnpkg/parsers';
  * @param {string} key - Lockfile entry key
  * @returns {string} Package name
  */
-function extractName(key) {
+export function parseLockfileKey(key) {
   // Keys can have multiple comma-separated entries, take the first one
   const firstKey = key.split(',')[0].trim();
 
@@ -84,7 +84,7 @@ export function* fromYarnBerryLock(content, _options = {}) {
     // Skip metadata
     if (key === '__metadata') continue;
 
-    const name = extractName(key);
+    const name = parseLockfileKey(key);
     const { version, checksum, resolution } = pkg;
 
     // Check if this is a link (workspace:, portal:, or link: protocol)

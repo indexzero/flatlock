@@ -2,7 +2,7 @@
  * Re-export all lockfile parsers
  */
 
-export { fromPackageLock } from './npm.js';
-export { fromPnpmLock } from './pnpm.js';
-export { fromYarnClassicLock } from './yarn-classic.js';
-export { fromYarnBerryLock } from './yarn-berry.js';
+export { fromPackageLock, parseLockfileKey as parseNpmKey } from './npm.js';
+export { fromPnpmLock, parseLockfileKey as parsePnpmKey } from './pnpm.js';
+export { fromYarnClassicLock, parseLockfileKey as parseYarnClassicKey } from './yarn-classic.js';
+export { fromYarnBerryLock, parseLockfileKey as parseYarnBerryKey } from './yarn-berry.js';

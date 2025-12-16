@@ -142,3 +142,14 @@ export async function collect(pathOrContent, options = {}) {
 
   return deps;
 }
+
+// Re-export compare API
+export { compare, compareAll } from './compare.js';
+
+// Re-export lockfile key parsing utilities
+export {
+  parseNpmKey,
+  parsePnpmKey,
+  parseYarnClassicKey,
+  parseYarnBerryKey
+} from './parsers/index.js';
