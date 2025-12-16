@@ -4,7 +4,7 @@ The Matlock of lockfile parsers - cuts through the complexity to get just the fa
 
 ## What makes `flatlock` different?
 
-![matlockish](https://github.com/indexzero/flatlock/raw/main/doc/matlockish.png)
+![matlockish](https://github.com/indexzero/flatlock/raw/main/doc/img/matlockish.png)
 
 Most lockfile parsers (like `@npmcli/arborist` or `snyk-nodejs-lockfile-parser`) build the full dependency graph with edges representing relationships between packages. This is necessary for dependency resolution but overkill for many use cases.
 
