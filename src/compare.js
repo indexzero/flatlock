@@ -1,32 +1,46 @@
-import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import Arborist from '@npmcli/arborist';
 import yarnLockfile from '@yarnpkg/lockfile';
 import { parseSyml } from '@yarnpkg/parsers';
 import yaml from 'js-yaml';
-import { fromPath, detectType, Type } from './index.js';
-import { parseYarnClassicKey, parseYarnBerryKey } from './parsers/index.js';
+import { detectType, fromPath, Type } from './index.js';
+import { parseYarnBerryKey, parseYarnClassicKey } from './parsers/index.js';
 import { parseSpec as parsePnpmSpec } from './parsers/pnpm.js';
 
-// Arborist is lazy-loaded because it's a devDependency (comparison testing only)
-let Arborist;
+/**
+ * @typedef {Object} CompareOptions
+ * @property {string} [tmpDir] - Temp directory for Arborist (npm only)
+ */
 
-async function loadArborist() {
-  if (!Arborist) {
-    const mod = await import('@npmcli/arborist');
-    Arborist = mod.default;
-  }
-  return Arborist;
-}
+/**
+ * @typedef {Object} ComparisonResult
+ * @property {string} type - Lockfile type
+ * @property {boolean | null} identical - Whether flatlock matches comparison parser
+ * @property {number} flatlockCount - Number of packages found by flatlock
+ * @property {number} [comparisonCount] - Number of packages found by comparison parser
+ * @property {number} [workspaceCount] - Number of workspace packages skipped
+ * @property {string[]} [onlyInFlatlock] - Packages only found by flatlock
+ * @property {string[]} [onlyInComparison] - Packages only found by comparison parser
+ */
+
+/**
+ * @typedef {Object} PackagesResult
+ * @property {Set<string>} packages - Set of package@version strings
+ * @property {number} workspaceCount - Number of workspace packages skipped
+ */
 
 /**
  * Get packages from npm lockfile using Arborist (ground truth)
+ * @param {string} content - Lockfile content
+ * @param {string} _filepath - Path to lockfile (unused)
+ * @param {CompareOptions} [options] - Options
+ * @returns {Promise<PackagesResult>}
  */
-async function getPackagesFromNpm(content, filepath, options = {}) {
-  const Arb = await loadArborist();
-
+async function getPackagesFromNpm(content, _filepath, options = {}) {
   // Arborist needs a directory with package-lock.json
-  const tmpDir = options.tmpDir || await mkdtemp(join(tmpdir(), 'flatlock-cmp-'));
+  const tmpDir = options.tmpDir || (await mkdtemp(join(tmpdir(), 'flatlock-cmp-')));
   const lockPath = join(tmpDir, 'package-lock.json');
   const pkgPath = join(tmpDir, 'package.json');
 
@@ -42,7 +56,7 @@ async function getPackagesFromNpm(content, filepath, options = {}) {
     };
     await writeFile(pkgPath, JSON.stringify(pkg));
 
-    const arb = new Arb({ path: tmpDir });
+    const arb = new Arborist({ path: tmpDir });
     const tree = await arb.loadVirtual();
 
     const packages = new Set();
@@ -76,6 +90,8 @@ async function getPackagesFromNpm(content, filepath, options = {}) {
 
 /**
  * Get packages from yarn classic lockfile
+ * @param {string} content - Lockfile content
+ * @returns {Promise<PackagesResult>}
  */
 async function getPackagesFromYarnClassic(content) {
   const parse = yarnLockfile.parse || yarnLockfile.default?.parse;
@@ -110,6 +126,8 @@ async function getPackagesFromYarnClassic(content) {
 
 /**
  * Get packages from yarn berry lockfile
+ * @param {string} content - Lockfile content
+ * @returns {Promise<PackagesResult>}
  */
 async function getPackagesFromYarnBerry(content) {
   const parsed = parseSyml(content);
@@ -122,9 +140,11 @@ async function getPackagesFromYarnBerry(content) {
 
     // Skip workspace/link entries - flatlock only cares about external dependencies
     const resolution = value.resolution || '';
-    if (resolution.startsWith('workspace:') ||
-        resolution.startsWith('portal:') ||
-        resolution.startsWith('link:')) {
+    if (
+      resolution.startsWith('workspace:') ||
+      resolution.startsWith('portal:') ||
+      resolution.startsWith('link:')
+    ) {
       workspaceCount++;
       continue;
     }
@@ -141,9 +161,11 @@ async function getPackagesFromYarnBerry(content) {
 
 /**
  * Get packages from pnpm lockfile
+ * @param {string} content - Lockfile content
+ * @returns {Promise<PackagesResult>}
  */
 async function getPackagesFromPnpm(content) {
-  const parsed = yaml.load(content);
+  const parsed = /** @type {{ packages?: Record<string, any> }} */ (yaml.load(content));
 
   const packages = new Set();
   let workspaceCount = 0;
@@ -152,8 +174,12 @@ async function getPackagesFromPnpm(content) {
   for (const [key, value] of Object.entries(pkgs)) {
     // Skip link/file entries - flatlock only cares about external dependencies
     // Keys can be: link:path, file:path, or @pkg@file:path
-    if (key.startsWith('link:') || key.startsWith('file:') ||
-        key.includes('@link:') || key.includes('@file:')) {
+    if (
+      key.startsWith('link:') ||
+      key.startsWith('file:') ||
+      key.includes('@link:') ||
+      key.includes('@file:')
+    ) {
       workspaceCount++;
       continue;
     }
@@ -176,8 +202,7 @@ async function getPackagesFromPnpm(content) {
 /**
  * Compare flatlock output against established parser for a lockfile
  * @param {string} filepath - Path to lockfile
- * @param {Object} options - Options
- * @param {string} options.tmpDir - Temp directory for Arborist (npm only)
+ * @param {CompareOptions} [options] - Options
  * @returns {Promise<ComparisonResult>}
  */
 export async function compare(filepath, options = {}) {
@@ -228,8 +253,8 @@ export async function compare(filepath, options = {}) {
 /**
  * Compare multiple lockfiles
  * @param {string[]} filepaths - Paths to lockfiles
- * @param {Object} options
- * @returns {AsyncGenerator<ComparisonResult>}
+ * @param {CompareOptions} [options] - Options
+ * @returns {AsyncGenerator<ComparisonResult & { filepath: string }>}
  */
 export async function* compareAll(filepaths, options = {}) {
   for (const filepath of filepaths) {

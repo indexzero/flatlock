@@ -8,15 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Export `compare()` and `compareAll()` functions for programmatic validation against native parsers
+- Separate export path `flatlock/compare` for comparison utilities
 - Export lockfile key parsing utilities: `parseNpmKey`, `parsePnpmKey`, `parseYarnClassicKey`, `parseYarnBerryKey` for advanced use cases
+- TypeScript type declarations with proper JSDoc annotations for all public APIs
 
 ### Changed
+- **Breaking**: `compare()` and `compareAll()` are no longer exported from main entry point - import from `flatlock/compare` instead
 - **Breaking (internal)**: Normalize parser function naming to `parseLockfileKey` across all parser modules for consistency
-- Refactor `flatlock-cmp` CLI to use extracted comparison logic from `src/compare.js`, making validation functions available for programmatic use
+- Move `@npmcli/arborist` from devDependencies to optionalDependencies (only needed for `flatlock/compare`)
+- Refactor `flatlock-cmp` CLI to use extracted comparison logic from `src/compare.js`
+- Replace `npm run` with `pnpm run` in package.json scripts
 
 ### Removed
 - Remove `src/support.js` - functionality consolidated into individual parser modules for better maintainability
+- Remove dynamic import and lazy-loading pattern for Arborist (now static import in separate entry point)
 
 ## [1.0.1] - 2025-12-11
 

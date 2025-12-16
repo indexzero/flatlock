@@ -61,11 +61,11 @@ export function parseLockfileKey(key) {
 /**
  * Parse pnpm-lock.yaml (v5.4, v6, v9)
  * @param {string} content - Lockfile content
- * @param {Object} [options] - Parser options
+ * @param {Object} [_options] - Parser options (unused, reserved for future use)
  * @returns {Generator<Dependency>}
  */
 export function* fromPnpmLock(content, _options = {}) {
-  const lockfile = yaml.load(content);
+  const lockfile = /** @type {{ packages?: Record<string, any> }} */ (yaml.load(content));
   const packages = lockfile.packages || {};
 
   for (const [spec, pkg] of Object.entries(packages)) {
@@ -82,6 +82,7 @@ export function* fromPnpmLock(content, _options = {}) {
     // Skip workspace/link entries - flatlock only cares about external dependencies
     if (link) continue;
 
+    /** @type {Dependency} */
     const dep = { name, version };
     if (integrity) dep.integrity = integrity;
     if (resolved) dep.resolved = resolved;

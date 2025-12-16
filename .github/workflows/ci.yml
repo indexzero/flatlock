@@ -22,8 +22,8 @@ jobs:
 
       - run: pnpm install
 
-      - name: Lint JavaScript
-        run: pnpm run lint
+      - name: Check (lint + types)
+        run: pnpm run check
 
       - name: Lint Markdown
         run: pnpm run lint:md

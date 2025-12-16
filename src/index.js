@@ -1,17 +1,20 @@
 import { readFile } from 'node:fs/promises';
-import { Type, detectType } from './detect.js';
-import { Ok, Err } from './result.js';
+import { detectType, Type } from './detect.js';
 import {
   fromPackageLock,
   fromPnpmLock,
-  fromYarnClassicLock,
-  fromYarnBerryLock
+  fromYarnBerryLock,
+  fromYarnClassicLock
 } from './parsers/index.js';
+import { Err, Ok } from './result.js';
+
+/** @typedef {import('./detect.js').LockfileType} LockfileType */
+/** @typedef {import('./parsers/npm.js').Dependency} Dependency */
 
 /**
- * @typedef {import('./detect.js').LockfileType} LockfileType
- * @typedef {import('./result.js').Result} Result
- * @typedef {import('./parsers/npm.js').Dependency} Dependency
+ * @typedef {Object} ParseOptions
+ * @property {string} [path] - Path hint for type detection
+ * @property {LockfileType} [type] - Explicit type (skip detection)
  */
 
 // Re-export Type and detection
@@ -73,23 +76,23 @@ export function* fromString(content, options = {}) {
 /**
  * Try to parse lockfile from path (returns Result)
  * @param {string} path - Path to lockfile
- * @param {Object} [options] - Parser options
- * @returns {Promise<Result<AsyncGenerator<Dependency>>>}
+ * @param {ParseOptions} [options] - Parser options
+ * @returns {Promise<import('./result.js').Result<AsyncGenerator<Dependency>>>}
  */
 export async function tryFromPath(path, options = {}) {
   try {
     const generator = fromPath(path, options);
     return Ok(generator);
   } catch (err) {
-    return Err(err);
+    return Err(/** @type {Error} */ (err));
   }
 }
 
 /**
  * Try to parse lockfile from string (returns Result)
  * @param {string} content - Lockfile content
- * @param {Object} [options] - Parser options
- * @returns {Result<Generator<Dependency>>}
+ * @param {ParseOptions} [options] - Parser options
+ * @returns {import('./result.js').Result<Generator<Dependency>>}
  */
 export function tryFromString(content, options = {}) {
   try {
@@ -98,7 +101,7 @@ export function tryFromString(content, options = {}) {
     const generator = fromString(content, { ...options, type });
     return Ok(generator);
   } catch (err) {
-    return Err(err);
+    return Err(/** @type {Error} */ (err));
   }
 }
 
@@ -143,13 +146,10 @@ export async function collect(pathOrContent, options = {}) {
   return deps;
 }
 
-// Re-export compare API
-export { compare, compareAll } from './compare.js';
-
 // Re-export lockfile key parsing utilities
 export {
   parseNpmKey,
   parsePnpmKey,
-  parseYarnClassicKey,
-  parseYarnBerryKey
+  parseYarnBerryKey,
+  parseYarnClassicKey
 } from './parsers/index.js';

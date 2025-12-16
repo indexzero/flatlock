@@ -1,11 +1,11 @@
 /**
  * Accuracy tests comparing flatlock against established parsers
  */
-import { test, describe } from 'node:test';
-import assert from 'node:assert/strict';
+
+import { describe, test } from 'node:test';
 
 import * as flatlock from '../src/index.js';
-import { loadFixture, compareResults, toSpec, logComparison } from './support.js';
+import { compareResults, loadFixture, logComparison, toSpec } from './support.js';
 
 /**
  * Collect all dependencies from our parser
@@ -20,7 +20,7 @@ async function collectOurs(content, options = {}) {
 
 describe('accuracy tests', () => {
   describe('npm (package-lock.json)', () => {
-    test('v2 lockfile - compare against @npmcli/arborist', async (t) => {
+    test('v2 lockfile - compare against @npmcli/arborist', async t => {
       const content = loadFixture('npm/package-lock.json.v2');
 
       // Our parser
@@ -49,10 +49,12 @@ describe('accuracy tests', () => {
       logComparison('npm v2 vs Arborist-style parsing', arboristDeps.size, ourDeps.size, results);
 
       // Log result but don't fail - differences are expected
-      t.diagnostic(`npm v2: arborist=${arboristDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`);
+      t.diagnostic(
+        `npm v2: arborist=${arboristDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
 
-    test('v3 lockfile - compare against @npmcli/arborist', async (t) => {
+    test('v3 lockfile - compare against @npmcli/arborist', async t => {
       const content = loadFixture('npm/package-lock.json.v3');
 
       const ourDeps = await collectOurs(content, { path: 'package-lock.json' });
@@ -72,12 +74,14 @@ describe('accuracy tests', () => {
       const results = compareResults(expectedDeps, ourDeps);
       logComparison('npm v3 vs direct parsing', expectedDeps.size, ourDeps.size, results);
 
-      t.diagnostic(`npm v3: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`);
+      t.diagnostic(
+        `npm v3: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
   });
 
   describe('pnpm (pnpm-lock.yaml)', () => {
-    test('v6 lockfile - compare against @pnpm/lockfile-file', async (t) => {
+    test('v6 lockfile - compare against @pnpm/lockfile-file', async t => {
       const content = loadFixture('pnpm/pnpm-lock.yaml.v6');
 
       const ourDeps = await collectOurs(content, { path: 'pnpm-lock.yaml' });
@@ -103,10 +107,12 @@ describe('accuracy tests', () => {
       const results = compareResults(expectedDeps, ourDeps);
       logComparison('pnpm v6 vs direct yaml parsing', expectedDeps.size, ourDeps.size, results);
 
-      t.diagnostic(`pnpm v6: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`);
+      t.diagnostic(
+        `pnpm v6: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
 
-    test('v9 lockfile - compare against @pnpm/lockfile-file', async (t) => {
+    test('v9 lockfile - compare against @pnpm/lockfile-file', async t => {
       const content = loadFixture('pnpm/pnpm-lock.yaml.v9');
 
       const ourDeps = await collectOurs(content, { path: 'pnpm-lock.yaml' });
@@ -130,12 +136,14 @@ describe('accuracy tests', () => {
       const results = compareResults(expectedDeps, ourDeps);
       logComparison('pnpm v9 vs direct yaml parsing', expectedDeps.size, ourDeps.size, results);
 
-      t.diagnostic(`pnpm v9: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`);
+      t.diagnostic(
+        `pnpm v9: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
   });
 
   describe('yarn classic (yarn.lock v1)', () => {
-    test('compare against @yarnpkg/lockfile', async (t) => {
+    test('compare against @yarnpkg/lockfile', async t => {
       const content = loadFixture('yarn/yarn.lock');
 
       const ourDeps = await collectOurs(content, { path: 'yarn.lock' });
@@ -170,12 +178,14 @@ describe('accuracy tests', () => {
       const results = compareResults(expectedDeps, ourDeps);
       logComparison('yarn classic vs @yarnpkg/lockfile', expectedDeps.size, ourDeps.size, results);
 
-      t.diagnostic(`yarn classic: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`);
+      t.diagnostic(
+        `yarn classic: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
   });
 
   describe('yarn berry (yarn.lock v2+)', () => {
-    test('v5 lockfile - compare against @yarnpkg/parsers', async (t) => {
+    test('v5 lockfile - compare against @yarnpkg/parsers', async t => {
       const content = loadFixture('yarn-berry/yarn.lock.v5');
 
       const ourDeps = await collectOurs(content, { path: 'yarn.lock' });
@@ -209,10 +219,12 @@ describe('accuracy tests', () => {
       const results = compareResults(expectedDeps, ourDeps);
       logComparison('yarn berry v5 vs @yarnpkg/parsers', expectedDeps.size, ourDeps.size, results);
 
-      t.diagnostic(`yarn berry v5: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`);
+      t.diagnostic(
+        `yarn berry v5: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
 
-    test('v8 lockfile - compare against @yarnpkg/parsers', async (t) => {
+    test('v8 lockfile - compare against @yarnpkg/parsers', async t => {
       const content = loadFixture('yarn-berry/yarn.lock.v8');
 
       const ourDeps = await collectOurs(content, { path: 'yarn.lock' });
@@ -244,12 +256,14 @@ describe('accuracy tests', () => {
       const results = compareResults(expectedDeps, ourDeps);
       logComparison('yarn berry v8 vs @yarnpkg/parsers', expectedDeps.size, ourDeps.size, results);
 
-      t.diagnostic(`yarn berry v8: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`);
+      t.diagnostic(
+        `yarn berry v8: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
   });
 
   describe('cross-validation with snyk-nodejs-lockfile-parser', () => {
-    test('npm lockfile cross-validation', async (t) => {
+    test('npm lockfile cross-validation', async t => {
       const content = loadFixture('npm/package-lock.json.v2');
 
       const ourDeps = await collectOurs(content, { path: 'package-lock.json' });
@@ -262,7 +276,7 @@ describe('accuracy tests', () => {
   });
 
   describe('summary', () => {
-    test('all fixtures parsed successfully', async (t) => {
+    test('all fixtures parsed successfully', async t => {
       const fixtures = [
         { path: 'npm/package-lock.json.v2', name: 'npm v2', hint: 'package-lock.json' },
         { path: 'npm/package-lock.json.v3', name: 'npm v3', hint: 'package-lock.json' },
@@ -270,7 +284,7 @@ describe('accuracy tests', () => {
         { path: 'pnpm/pnpm-lock.yaml.v9', name: 'pnpm v9', hint: 'pnpm-lock.yaml' },
         { path: 'yarn/yarn.lock', name: 'yarn classic', hint: 'yarn.lock' },
         { path: 'yarn-berry/yarn.lock.v5', name: 'yarn berry v5', hint: 'yarn.lock' },
-        { path: 'yarn-berry/yarn.lock.v8', name: 'yarn berry v8', hint: 'yarn.lock' },
+        { path: 'yarn-berry/yarn.lock.v8', name: 'yarn berry v8', hint: 'yarn.lock' }
       ];
 
       console.log('\n=== Fixture Summary ===');

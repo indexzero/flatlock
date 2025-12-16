@@ -3,7 +3,7 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -80,9 +80,15 @@ export function logComparison(label, expectedCount, actualCount, results) {
   console.log(`  Accuracy:     ${formatAccuracy(results.accuracy)}`);
 
   if (results.onlyInExpected.length > 0) {
-    console.log(`  Missing (${results.onlyInExpected.length}):`, results.onlyInExpected.slice(0, 3).join(', '));
+    console.log(
+      `  Missing (${results.onlyInExpected.length}):`,
+      results.onlyInExpected.slice(0, 3).join(', ')
+    );
   }
   if (results.onlyInActual.length > 0) {
-    console.log(`  Extra (${results.onlyInActual.length}):`, results.onlyInActual.slice(0, 3).join(', '));
+    console.log(
+      `  Extra (${results.onlyInActual.length}):`,
+      results.onlyInActual.slice(0, 3).join(', ')
+    );
   }
 }

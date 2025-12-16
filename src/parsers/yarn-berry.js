@@ -74,7 +74,7 @@ export function parseLockfileKey(key) {
 /**
  * Parse yarn.lock v2+ (berry)
  * @param {string} content - Lockfile content
- * @param {Object} [options] - Parser options
+ * @param {Object} [_options] - Parser options (unused, reserved for future use)
  * @returns {Generator<Dependency>}
  */
 export function* fromYarnBerryLock(content, _options = {}) {
@@ -88,14 +88,16 @@ export function* fromYarnBerryLock(content, _options = {}) {
     const { version, checksum, resolution } = pkg;
 
     // Check if this is a link (workspace:, portal:, or link: protocol)
-    const link = resolution?.startsWith('workspace:')
-      || resolution?.startsWith('portal:')
-      || resolution?.startsWith('link:');
+    const link =
+      resolution?.startsWith('workspace:') ||
+      resolution?.startsWith('portal:') ||
+      resolution?.startsWith('link:');
 
     // Skip workspace/link entries - flatlock only cares about external dependencies
     if (link) continue;
 
     if (name && version) {
+      /** @type {Dependency} */
       const dep = { name, version };
       if (checksum) dep.integrity = checksum;
       if (resolution) dep.resolved = resolution;
