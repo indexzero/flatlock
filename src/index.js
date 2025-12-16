@@ -7,6 +7,7 @@ import {
   fromYarnClassicLock
 } from './parsers/index.js';
 import { Err, Ok } from './result.js';
+import { FlatlockSet } from './set.js';
 
 /** @typedef {import('./detect.js').LockfileType} LockfileType */
 /** @typedef {import('./parsers/npm.js').Dependency} Dependency */
@@ -25,6 +26,9 @@ export { Ok, Err };
 
 // Re-export individual parsers
 export { fromPackageLock, fromPnpmLock, fromYarnClassicLock, fromYarnBerryLock };
+
+// Re-export FlatlockSet class
+export { FlatlockSet };
 
 /**
  * Parse lockfile from path (auto-detect type)
