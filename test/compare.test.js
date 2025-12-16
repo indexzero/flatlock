@@ -7,7 +7,8 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { compare, compareAll, Type } from '../src/index.js';
+import { compare, compareAll } from '../src/compare.js';
+import { Type } from '../src/index.js';
 import { loadFixture } from './support.js';
 
 /**

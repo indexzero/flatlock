@@ -81,10 +81,10 @@ function tryParsePnpm(content) {
   try {
     const parsed = yaml.load(content);
     // Must have lockfileVersion at root and NOT have __metadata
-    return parsed
+    return !!(parsed
       && typeof parsed === 'object'
       && 'lockfileVersion' in parsed
-      && !('__metadata' in parsed);
+      && !('__metadata' in parsed));
   } catch {
     return false;
   }

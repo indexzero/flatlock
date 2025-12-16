@@ -73,7 +73,7 @@ export function parseLockfileKey(key) {
 /**
  * Parse yarn.lock v1 (classic)
  * @param {string} content - Lockfile content
- * @param {Object} [options] - Parser options
+ * @param {Object} [_options] - Parser options (unused, reserved for future use)
  * @returns {Generator<Dependency>}
  */
 export function* fromYarnClassicLock(content, _options = {}) {
@@ -96,6 +96,7 @@ export function* fromYarnClassicLock(content, _options = {}) {
     if (link) continue;
 
     if (name && version) {
+      /** @type {Dependency} */
       const dep = { name, version };
       if (integrity) dep.integrity = integrity;
       if (resolved) dep.resolved = resolved;

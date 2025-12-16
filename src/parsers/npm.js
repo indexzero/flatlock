@@ -53,7 +53,7 @@
  */
 export function parseLockfileKey(path) {
   const parts = path.split('/');
-  const name = parts.at(-1);
+  const name = /** @type {string} */ (parts.at(-1));
   const maybeScope = parts.at(-2);
 
   return maybeScope?.startsWith('@')
@@ -64,7 +64,7 @@ export function parseLockfileKey(path) {
 /**
  * Parse npm package-lock.json (v1, v2, v3)
  * @param {string} content - Lockfile content
- * @param {Object} [options] - Parser options
+ * @param {Object} [_options] - Parser options (unused, reserved for future use)
  * @returns {Generator<Dependency>}
  */
 export function* fromPackageLock(content, _options = {}) {
@@ -86,6 +86,7 @@ export function* fromPackageLock(content, _options = {}) {
 
     // Only yield if we have a name and version
     if (name && version) {
+      /** @type {Dependency} */
       const dep = { name, version };
       if (integrity) dep.integrity = integrity;
       if (resolved) dep.resolved = resolved;
