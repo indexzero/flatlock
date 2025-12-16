@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2025-12-16
 
 ### Added
 - Separate export path `flatlock/compare` for comparison utilities
@@ -54,6 +54,7 @@ Initial release of flatlock - the Matlock of lockfile parsers.
 - Designed for use cases that need package enumeration without dependency resolution: SBOM generation, vulnerability scanning, license compliance, integrity verification
 - For full dependency tree analysis ("why is X installed?"), use `@npmcli/arborist` instead
 
-[unreleased]: https://github.com/indexzero/flatlock/compare/1.0.1...HEAD
+[unreleased]: https://github.com/indexzero/flatlock/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/indexzero/flatlock/compare/1.0.0...1.1.0
 [1.0.1]: https://github.com/indexzero/flatlock/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/indexzero/flatlock/releases/tag/1.0.0

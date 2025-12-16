@@ -1,6 +1,6 @@
 {
   "name": "flatlock",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "The Matlock of lockfile parsers - extracts packages without building dependency graphs",
   "keywords": [
     "lockfile",
@@ -22,6 +22,7 @@
   "license": "Apache-2.0",
   "author": "Charlie Robbins <npm@charlie.dev>",
   "type": "module",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
