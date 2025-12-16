@@ -40,6 +40,7 @@ function tryParseYarnBerry(content) {
   try {
     const parsed = parseSyml(content);
     // Must have __metadata object at root with version property
+    // biome-ignore format: preserve multiline logical expression
     return parsed
       && typeof parsed.__metadata === 'object'
       && parsed.__metadata !== null
@@ -81,6 +82,7 @@ function tryParsePnpm(content) {
   try {
     const parsed = yaml.load(content);
     // Must have lockfileVersion at root and NOT have __metadata
+    // biome-ignore format: preserve multiline logical expression
     return !!(parsed
       && typeof parsed === 'object'
       && 'lockfileVersion' in parsed

@@ -5,11 +5,14 @@
 declare module '@yarnpkg/lockfile' {
   interface ParseResult {
     type: 'success' | 'merge' | 'conflict';
-    object: Record<string, {
-      version: string;
-      resolved?: string;
-      integrity?: string;
-    }>;
+    object: Record<
+      string,
+      {
+        version: string;
+        resolved?: string;
+        integrity?: string;
+      }
+    >;
   }
 
   function parse(content: string): ParseResult;

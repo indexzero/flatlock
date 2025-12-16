@@ -88,9 +88,10 @@ export function* fromYarnBerryLock(content, _options = {}) {
     const { version, checksum, resolution } = pkg;
 
     // Check if this is a link (workspace:, portal:, or link: protocol)
-    const link = resolution?.startsWith('workspace:')
-      || resolution?.startsWith('portal:')
-      || resolution?.startsWith('link:');
+    const link =
+      resolution?.startsWith('workspace:') ||
+      resolution?.startsWith('portal:') ||
+      resolution?.startsWith('link:');
 
     // Skip workspace/link entries - flatlock only cares about external dependencies
     if (link) continue;

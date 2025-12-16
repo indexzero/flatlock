@@ -22,14 +22,14 @@
  * @param {T} value - The success value
  * @returns {OkResult<T>}
  */
-export const Ok = (value) => ({ ok: true, value });
+export const Ok = value => ({ ok: true, value });
 
 /**
  * Create a failed Result
  * @param {Error | string} error - The error
  * @returns {ErrResult}
  */
-export const Err = (error) => ({
+export const Err = error => ({
   ok: false,
   error: error instanceof Error ? error : new Error(error)
 });

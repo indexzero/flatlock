@@ -56,9 +56,7 @@ export function parseLockfileKey(path) {
   const name = /** @type {string} */ (parts.at(-1));
   const maybeScope = parts.at(-2);
 
-  return maybeScope?.startsWith('@')
-    ? `${maybeScope}/${name}`
-    : name;
+  return maybeScope?.startsWith('@') ? `${maybeScope}/${name}` : name;
 }
 
 /**
