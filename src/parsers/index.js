@@ -5,4 +5,8 @@
 export { fromPackageLock, parseLockfileKey as parseNpmKey } from './npm.js';
 export { fromPnpmLock, parseLockfileKey as parsePnpmKey } from './pnpm.js';
 export { fromYarnBerryLock, parseLockfileKey as parseYarnBerryKey } from './yarn-berry.js';
-export { fromYarnClassicLock, parseLockfileKey as parseYarnClassicKey } from './yarn-classic.js';
+export {
+  fromYarnClassicLock,
+  parseLockfileKey as parseYarnClassicKey,
+  parseYarnClassic
+} from './yarn-classic.js';

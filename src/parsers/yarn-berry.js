@@ -1,13 +1,6 @@
 import { parseSyml } from '@yarnpkg/parsers';
 
-/**
- * @typedef {Object} Dependency
- * @property {string} name - Package name
- * @property {string} version - Resolved version
- * @property {string} [integrity] - Integrity hash
- * @property {string} [resolved] - Resolution URL
- * @property {boolean} [link] - True if this is a symlink
- */
+/** @typedef {import('./types.js').Dependency} Dependency */
 
 /**
  * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -73,12 +66,12 @@ export function parseLockfileKey(key) {
 
 /**
  * Parse yarn.lock v2+ (berry)
- * @param {string} content - Lockfile content
+ * @param {string | object} input - Lockfile content string or pre-parsed object
  * @param {Object} [_options] - Parser options (unused, reserved for future use)
  * @returns {Generator<Dependency>}
  */
-export function* fromYarnBerryLock(content, _options = {}) {
-  const lockfile = parseSyml(content);
+export function* fromYarnBerryLock(input, _options = {}) {
+  const lockfile = typeof input === 'string' ? parseSyml(input) : input;
 
   for (const [key, pkg] of Object.entries(lockfile)) {
     // Skip metadata

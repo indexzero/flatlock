@@ -1,13 +1,6 @@
 import yaml from 'js-yaml';
 
-/**
- * @typedef {Object} Dependency
- * @property {string} name - Package name
- * @property {string} version - Resolved version
- * @property {string} [integrity] - Integrity hash
- * @property {string} [resolved] - Resolution URL
- * @property {boolean} [link] - True if this is a symlink
- */
+/** @typedef {import('./types.js').Dependency} Dependency */
 
 /**
  * Parse pnpm package spec to extract name and version
@@ -60,12 +53,14 @@ export function parseLockfileKey(key) {
 
 /**
  * Parse pnpm-lock.yaml (v5.4, v6, v9)
- * @param {string} content - Lockfile content
+ * @param {string | object} input - Lockfile content string or pre-parsed object
  * @param {Object} [_options] - Parser options (unused, reserved for future use)
  * @returns {Generator<Dependency>}
  */
-export function* fromPnpmLock(content, _options = {}) {
-  const lockfile = /** @type {{ packages?: Record<string, any> }} */ (yaml.load(content));
+export function* fromPnpmLock(input, _options = {}) {
+  const lockfile = /** @type {{ packages?: Record<string, any> }} */ (
+    typeof input === 'string' ? yaml.load(input) : input
+  );
   const packages = lockfile.packages || {};
 
   for (const [spec, pkg] of Object.entries(packages)) {

@@ -2,11 +2,10 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Arborist from '@npmcli/arborist';
-import yarnLockfile from '@yarnpkg/lockfile';
 import { parseSyml } from '@yarnpkg/parsers';
 import yaml from 'js-yaml';
 import { detectType, fromPath, Type } from './index.js';
-import { parseYarnBerryKey, parseYarnClassicKey } from './parsers/index.js';
+import { parseYarnBerryKey, parseYarnClassic, parseYarnClassicKey } from './parsers/index.js';
 import { parseSpec as parsePnpmSpec } from './parsers/pnpm.js';
 
 /**
@@ -94,8 +93,7 @@ async function getPackagesFromNpm(content, _filepath, options = {}) {
  * @returns {Promise<PackagesResult>}
  */
 async function getPackagesFromYarnClassic(content) {
-  const parse = yarnLockfile.parse || yarnLockfile.default?.parse;
-  const parsed = parse(content);
+  const parsed = parseYarnClassic(content);
 
   if (parsed.type !== 'success' && parsed.type !== 'merge') {
     throw new Error('Failed to parse yarn.lock');

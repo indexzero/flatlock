@@ -1,5 +1,4 @@
 import { readFile } from 'node:fs/promises';
-import yarnLockfile from '@yarnpkg/lockfile';
 import { parseSyml } from '@yarnpkg/parsers';
 import yaml from 'js-yaml';
 import { detectType, Type } from './detect.js';
@@ -9,6 +8,7 @@ import {
   fromYarnBerryLock,
   fromYarnClassicLock,
   parseYarnBerryKey,
+  parseYarnClassic,
   parseYarnClassicKey
 } from './parsers/index.js';
 
@@ -162,7 +162,8 @@ export class FlatlockSet {
       case Type.NPM: {
         const lockfile = JSON.parse(content);
         packages = lockfile.packages || {};
-        for (const dep of fromPackageLock(content, options)) {
+        // Pass pre-parsed lockfile object to avoid re-parsing
+        for (const dep of fromPackageLock(lockfile, options)) {
           deps.set(`${dep.name}@${dep.version}`, dep);
         }
         break;
@@ -172,23 +173,25 @@ export class FlatlockSet {
         const lockfile = yaml.load(content);
         packages = lockfile.packages || {};
         importers = lockfile.importers || null;
-        for (const dep of fromPnpmLock(content, options)) {
+        // Pass pre-parsed lockfile object to avoid re-parsing
+        for (const dep of fromPnpmLock(lockfile, options)) {
           deps.set(`${dep.name}@${dep.version}`, dep);
         }
         break;
       }
       case Type.YARN_CLASSIC: {
-        const parse = yarnLockfile.default?.parse || yarnLockfile.parse;
-        const result = parse(content);
+        const result = parseYarnClassic(content);
         packages = result.object || {};
-        for (const dep of fromYarnClassicLock(content, options)) {
+        // Pass pre-parsed lockfile object to avoid re-parsing
+        for (const dep of fromYarnClassicLock(packages, options)) {
           deps.set(`${dep.name}@${dep.version}`, dep);
         }
         break;
       }
       case Type.YARN_BERRY: {
         packages = parseSyml(content);
-        for (const dep of fromYarnBerryLock(content, options)) {
+        // Pass pre-parsed lockfile object to avoid re-parsing
+        for (const dep of fromYarnBerryLock(packages, options)) {
           deps.set(`${dep.name}@${dep.version}`, dep);
         }
         break;

@@ -134,8 +134,8 @@ export function* fromYarnLock(content, options = {}) {
 export async function collect(pathOrContent, options = {}) {
   const deps = [];
 
-  // Check if it's a path or content
-  const isPath = !pathOrContent.includes('\n') && !pathOrContent.startsWith('{');
+  // Better heuristic: paths don't contain newlines and are reasonably short
+  const isPath = !pathOrContent.includes('\n') && pathOrContent.length < 1000;
 
   if (isPath) {
     for await (const dep of fromPath(pathOrContent, options)) {

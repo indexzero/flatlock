@@ -1,11 +1,4 @@
-/**
- * @typedef {Object} Dependency
- * @property {string} name - Package name
- * @property {string} version - Resolved version
- * @property {string} [integrity] - Integrity hash
- * @property {string} [resolved] - Resolution URL
- * @property {boolean} [link] - True if this is a symlink
- */
+/** @typedef {import('./types.js').Dependency} Dependency */
 
 /**
  * LIMITATION: Workspace symlinks are not yielded
@@ -61,12 +54,12 @@ export function parseLockfileKey(path) {
 
 /**
  * Parse npm package-lock.json (v1, v2, v3)
- * @param {string} content - Lockfile content
+ * @param {string | object} input - Lockfile content string or pre-parsed object
  * @param {Object} [_options] - Parser options (unused, reserved for future use)
  * @returns {Generator<Dependency>}
  */
-export function* fromPackageLock(content, _options = {}) {
-  const lockfile = JSON.parse(content);
+export function* fromPackageLock(input, _options = {}) {
+  const lockfile = typeof input === 'string' ? JSON.parse(input) : input;
   const packages = lockfile.packages || {};
 
   for (const [path, pkg] of Object.entries(packages)) {

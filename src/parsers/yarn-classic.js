@@ -1,15 +1,18 @@
 import yarnLockfile from '@yarnpkg/lockfile';
 
-const { parse } = yarnLockfile;
+/** @typedef {import('./types.js').Dependency} Dependency */
 
 /**
- * @typedef {Object} Dependency
- * @property {string} name - Package name
- * @property {string} version - Resolved version
- * @property {string} [integrity] - Integrity hash
- * @property {string} [resolved] - Resolution URL
- * @property {boolean} [link] - True if this is a symlink
+ * @typedef {Object} YarnClassicParseResult
+ * @property {'success' | 'merge' | 'conflict'} type - Parse result type
+ * @property {Record<string, any>} object - Parsed lockfile object
  */
+
+/**
+ * The yarn classic parse function (handles CJS/ESM interop)
+ * @type {(content: string) => YarnClassicParseResult}
+ */
+export const parseYarnClassic = yarnLockfile.default?.parse || yarnLockfile.parse;
 
 /**
  * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -72,18 +75,21 @@ export function parseLockfileKey(key) {
 
 /**
  * Parse yarn.lock v1 (classic)
- * @param {string} content - Lockfile content
+ * @param {string | object} input - Lockfile content string or pre-parsed object
  * @param {Object} [_options] - Parser options (unused, reserved for future use)
  * @returns {Generator<Dependency>}
  */
-export function* fromYarnClassicLock(content, _options = {}) {
-  const parsed = parse(content);
-
-  if (parsed.type !== 'success') {
-    throw new Error(`Failed to parse yarn.lock: ${parsed.type}`);
+export function* fromYarnClassicLock(input, _options = {}) {
+  let lockfile;
+  if (typeof input === 'string') {
+    const result = parseYarnClassic(input);
+    if (result.type !== 'success' && result.type !== 'merge') {
+      throw new Error('Failed to parse yarn.lock');
+    }
+    lockfile = result.object;
+  } else {
+    lockfile = input;
   }
-
-  const lockfile = parsed.object;
 
   for (const [key, pkg] of Object.entries(lockfile)) {
     const name = parseLockfileKey(key);

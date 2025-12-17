@@ -365,4 +365,159 @@ lodash@^4.17.21:
       assert.equal(deps[0].name, 'lodash');
     });
   });
+
+  describe('parsers accept pre-parsed objects', () => {
+    test('fromPackageLock accepts pre-parsed object', () => {
+      const lockfile = {
+        lockfileVersion: 2,
+        packages: {
+          '': { name: 'root', version: '1.0.0' },
+          'node_modules/lodash': {
+            version: '4.17.21',
+            resolved: 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz',
+            integrity: 'sha512-test123'
+          }
+        }
+      };
+
+      // Pass object directly, not JSON string
+      const deps = [...flatlock.fromPackageLock(lockfile)];
+      assert.equal(deps.length, 1);
+      assert.equal(deps[0].name, 'lodash');
+      assert.equal(deps[0].version, '4.17.21');
+      assert.equal(deps[0].integrity, 'sha512-test123');
+    });
+
+    test('fromPnpmLock accepts pre-parsed object', () => {
+      const lockfile = {
+        lockfileVersion: '6.0',
+        packages: {
+          '/lodash@4.17.21': {
+            resolution: {
+              integrity: 'sha512-test',
+              tarball: 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz'
+            }
+          }
+        }
+      };
+
+      // Pass object directly, not YAML string
+      const deps = [...flatlock.fromPnpmLock(lockfile)];
+      assert.equal(deps.length, 1);
+      assert.equal(deps[0].name, 'lodash');
+      assert.equal(deps[0].version, '4.17.21');
+    });
+
+    test('fromYarnClassicLock accepts pre-parsed object', () => {
+      const lockfile = {
+        'lodash@^4.17.21': {
+          version: '4.17.21',
+          resolved: 'https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz',
+          integrity: 'sha512-test123'
+        }
+      };
+
+      // Pass object directly (this is what @yarnpkg/lockfile returns as result.object)
+      const deps = [...flatlock.fromYarnClassicLock(lockfile)];
+      assert.equal(deps.length, 1);
+      assert.equal(deps[0].name, 'lodash');
+      assert.equal(deps[0].version, '4.17.21');
+    });
+
+    test('fromYarnBerryLock accepts pre-parsed object', () => {
+      const lockfile = {
+        __metadata: { version: 6 },
+        'lodash@npm:^4.17.21': {
+          version: '4.17.21',
+          resolution: 'lodash@npm:4.17.21',
+          checksum: 'sha512-test123'
+        }
+      };
+
+      // Pass object directly (this is what parseSyml returns)
+      const deps = [...flatlock.fromYarnBerryLock(lockfile)];
+      assert.equal(deps.length, 1);
+      assert.equal(deps[0].name, 'lodash');
+      assert.equal(deps[0].version, '4.17.21');
+    });
+
+    test('string and object produce same results for npm', () => {
+      const lockfile = {
+        lockfileVersion: 2,
+        packages: {
+          '': { name: 'root', version: '1.0.0' },
+          'node_modules/lodash': { version: '4.17.21' },
+          'node_modules/@babel/core': { version: '7.23.0' }
+        }
+      };
+
+      const fromString = [...flatlock.fromPackageLock(JSON.stringify(lockfile))];
+      const fromObject = [...flatlock.fromPackageLock(lockfile)];
+
+      assert.equal(fromString.length, fromObject.length);
+      assert.deepEqual(
+        fromString.map(d => `${d.name}@${d.version}`).sort(),
+        fromObject.map(d => `${d.name}@${d.version}`).sort()
+      );
+    });
+  });
+
+  describe('collect() path detection', () => {
+    test('recognizes YAML content as content, not path', async () => {
+      const yamlContent = `lockfileVersion: '6.0'
+packages:
+  /lodash@4.17.21:
+    resolution: { integrity: sha512-test }
+`;
+      // Should not throw - YAML content should be detected as content, not path
+      const deps = await flatlock.collect(yamlContent, { type: flatlock.Type.PNPM });
+      assert.ok(deps.length > 0);
+      assert.equal(deps[0].name, 'lodash');
+    });
+
+    test('recognizes JSON content as content, not path', async () => {
+      // Use pretty-printed JSON which has newlines (more realistic for lockfiles)
+      const jsonContent = JSON.stringify(
+        {
+          lockfileVersion: 2,
+          packages: {
+            '': { name: 'root', version: '1.0.0' },
+            'node_modules/lodash': { version: '4.17.21' }
+          }
+        },
+        null,
+        2
+      );
+
+      // Verify it has newlines (which is the primary detection signal)
+      assert.ok(jsonContent.includes('\n'), 'JSON should have newlines');
+
+      const deps = await flatlock.collect(jsonContent, { type: flatlock.Type.NPM });
+      assert.equal(deps.length, 1);
+      assert.equal(deps[0].name, 'lodash');
+    });
+
+    test('short strings without newlines are treated as paths', async () => {
+      // A typical path is short and has no newlines
+      const shortPath = '/some/path/to/package-lock.json';
+
+      // This should try to read from the path (and fail since it does not exist)
+      await assert.rejects(() => flatlock.collect(shortPath), /ENOENT|no such file/i);
+    });
+
+    test('long content without newlines is treated as content', async () => {
+      // Create a minimal but "long" JSON lockfile (over 1000 chars) on a single line
+      const packages = {};
+      for (let i = 0; i < 20; i++) {
+        packages[`node_modules/package-with-long-name-${i}`] = { version: '1.0.0' };
+      }
+      const longContent = JSON.stringify({ lockfileVersion: 2, packages });
+
+      assert.ok(longContent.length > 1000, 'Content should be over 1000 chars');
+      assert.ok(!longContent.includes('\n'), 'Content should be single line');
+
+      const deps = await flatlock.collect(longContent, { type: flatlock.Type.NPM });
+      assert.ok(deps.length > 0);
+    });
+  });
 });

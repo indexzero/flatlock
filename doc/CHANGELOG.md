@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Predicates: `isSubsetOf()`, `isSupersetOf()`, `isDisjointFrom()`
   - Traversal: `dependenciesOf()` for workspace-specific SBOM generation
 - Comprehensive test suite for FlatlockSet (48 test cases)
+- Export `parseYarnClassic` function for standardized yarn classic lockfile parsing
+
+### Changed
+- Parsers now accept pre-parsed lockfile objects for better performance (eliminates redundant parsing)
+- Consolidate `Dependency` type definition into `src/parsers/types.js`
+- Standardize `@yarnpkg/lockfile` parse function access across all modules via `parseYarnClassic`
+
+### Fixed
+- Fix `collect()` path detection for YAML lockfile content (was incorrectly treating YAML as a path)
 
 ## [1.1.0] - 2025-12-16
 
