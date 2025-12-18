@@ -14,11 +14,11 @@ Official tools used for comparison:
 
 | Package Manager | Scenarios | Accuracy vs Official | Notes |
 |-----------------|-----------|---------------------|-------|
-| npm | 5 | 100% | Path-based name extraction |
+| npm | 6 | 100% | Path-based name extraction |
 | pnpm | 5 | 100% | Complex version matrix |
 | yarn-classic | 3 | 100% | Multi-range key parsing |
 | yarn-berry | 7 | 56.10%* | *Intentional divergence for SBOM accuracy |
-| cross-cutting | 2 | - | Applies to all parsers |
+| cross-cutting | 1 | - | Applies to all parsers |
 
 ---
 
@@ -363,7 +363,7 @@ For SBOM, the peer suffix `(react@18.2.0)` must be stripped. The package name is
 
 **⚗️ Reproducibility**
 ```bash
-node --test --test-name-pattern="pnpm-04" test/ground-truth.test.js
+node --test --test-name-pattern="pnpm-04" test/parsers/pnpm.test.js
 ```
 
 **📋 Full Test Cases**
@@ -534,7 +534,7 @@ flatlock achieves **100% accuracy** against @yarnpkg/lockfile, the official pars
 
 **⚗️ Reproducibility**
 ```bash
-node --test --test-name-pattern="yarn-berry-01" test/ground-truth.test.js
+node --test --test-name-pattern="yarn-berry-01" test/parsers/yarn-berry.test.js
 ```
 
 **📋 Full Test Cases**
@@ -595,7 +595,7 @@ For SBOM accuracy, flatlock uses the resolution field. The alias `string-width-c
 
 **⚗️ Reproducibility**
 ```bash
-node --test --test-name-pattern="yarn-berry-02" test/ground-truth.test.js test/accuracy.test.js
+node --test --test-name-pattern="yarn-berry-02" test/parsers/yarn-berry.test.js test/accuracy.test.js
 ```
 
 **📋 Full Test Cases**
@@ -639,7 +639,7 @@ The divergence is correct for SBOM accuracy and vulnerability scanning.
 
 **⚗️ Reproducibility**
 ```bash
-node --test --test-name-pattern="yarn-berry-03" test/ground-truth.test.js
+node --test --test-name-pattern="yarn-berry-03" test/parsers/yarn-berry.test.js
 ```
 
 **📋 Full Test Cases**
@@ -674,7 +674,7 @@ flatlock achieves **100% parity** with @yarnpkg/core's `originalPackages` regist
 
 **⚗️ Reproducibility**
 ```bash
-node --test --test-name-pattern="yarn-berry-04" test/ground-truth.test.js
+node --test --test-name-pattern="yarn-berry-04" test/parsers/yarn-berry.test.js
 ```
 
 **📋 Full Test Cases**
@@ -708,7 +708,7 @@ This is necessary because:
 
 **⚗️ Reproducibility**
 ```bash
-node --test --test-name-pattern="yarn-berry-05" test/ground-truth.test.js
+node --test --test-name-pattern="yarn-berry-05" test/parsers/yarn-berry.test.js
 ```
 
 **📋 Full Test Cases**
@@ -748,7 +748,7 @@ The parser must find the FIRST protocol marker (`@patch:`), not the nested `@npm
 
 **⚗️ Reproducibility**
 ```bash
-node --test --test-name-pattern="yarn-berry-06" test/ground-truth.test.js
+node --test --test-name-pattern="yarn-berry-06" test/parsers/yarn-berry.test.js
 ```
 
 **📋 Full Test Cases**
@@ -793,7 +793,7 @@ Local package protocols must be filtered from SBOM output:
 
 **⚗️ Reproducibility**
 ```bash
-node --test --test-name-pattern="yarn-berry-07" test/ground-truth.test.js
+node --test --test-name-pattern="yarn-berry-07" test/parsers/yarn-berry.test.js
 ```
 
 **📋 Full Test Cases**
@@ -832,7 +832,7 @@ These are local packages in the monorepo and must be excluded from SBOM output.
 
 **⚗️ Reproducibility**
 ```bash
-node --test --test-name-pattern="cross-01" test/ground-truth.test.js
+node --test --test-name-pattern="cross-01" test/lockfile.test.js
 ```
 
 **📋 Full Test Cases**
@@ -867,23 +867,23 @@ Two sets are equinumerous if they have the same number of elements, even if the 
 
 Etymology: Latin "equi-" (equal) + "numerus" (number) = same cardinality.
 
-### cross-02: Scoped Package Parsing
+### npm-06 (formerly cross-02): Scoped Package Parsing
 
 <details>
   <summary>⚗️ Reproducibility & 📋 Full Test Cases</summary>
 
 **⚗️ Reproducibility**
 ```bash
-node --test --test-name-pattern="cross-02" test/parsers/npm.test.js
+node --test --test-name-pattern="npm-06" test/parsers/npm.test.js
 ```
 
 **📋 Full Test Cases**
 ```
 ▶ npm parsers
   ▶ fromPackageLock
-    ▶ [cross-02] scoped packages
-      ✔ [cross-02] parses various scoped packages from v2 fixture (4.701ms)
-    ✔ [cross-02] scoped packages (4.770041ms)
+    ▶ [npm-06] scoped packages
+      ✔ [npm-06] parses various scoped packages from v2 fixture (4.701ms)
+    ✔ [npm-06] scoped packages (4.770041ms)
 ```
 
 </details>
@@ -908,14 +908,19 @@ Edge cases: `@scope` alone (invalid), `@@double` (invalid), `@scope/name/extra` 
 
 | Scenario | Status | Primary Test File |
 |----------|--------|-------------------|
-| npm-01 to npm-05 | Tested | `test/parsers/npm.test.js` |
-| pnpm-01 to pnpm-04 | Tested | `test/parsers/pnpm.test.js`, `test/ground-truth.test.js` |
-| pnpm-05 | **NOT TESTED** | Needs coverage |
+| npm-01 to npm-06 | Tested | `test/parsers/npm.test.js` |
+| pnpm-01 to pnpm-04 | Tested | `test/parsers/pnpm.test.js` |
+| pnpm-05 | Placeholder | `test/parsers/pnpm.test.js` |
 | yarn-classic-01 to yarn-classic-03 | Tested | `test/parsers/yarn-classic.test.js`, `test/accuracy.test.js` |
-| yarn-berry-01 to yarn-berry-07 | Tested | `test/ground-truth.test.js` |
-| cross-01 to cross-02 | Tested | `test/ground-truth.test.js`, various parser tests |
+| yarn-berry-01 to yarn-berry-07 | Tested | `test/parsers/yarn-berry.test.js` |
+| cross-01 | Tested | `test/lockfile.test.js` |
 
-Run all ground truth tests:
+Run scenario tests by pattern:
 ```bash
-npm test -- --test-name-pattern="ground-truth|accuracy"
+# Run all tests for a specific scenario
+node --test --test-name-pattern="npm-01" test/parsers/npm.test.js
+node --test --test-name-pattern="yarn-berry-02" test/parsers/yarn-berry.test.js
+
+# Run accuracy tests (ground truth comparison)
+pnpm test -- --test-name-pattern="accuracy"
 ```

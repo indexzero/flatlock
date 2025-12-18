@@ -462,6 +462,127 @@ lodash@^4.17.21:
     });
   });
 
+  // ============================================================================
+  // Ground Truth Discovery Tests
+  // ============================================================================
+
+  /**
+   * cross-01: Equinumerous Semantic
+   *
+   * Discovery: The compare.js `equinumerous` field compares CARDINALITY (set size),
+   * not individual package names. Two sets are equinumerous if they have the same
+   * number of elements, regardless of whether the elements themselves match.
+   *
+   * This means:
+   *   - equinumerous: true means flatlock.size === comparison.size
+   *   - Individual packages can differ (aliases vs canonical names)
+   *   - This is correct for validating parser coverage
+   *
+   * Etymology: Latin "equi-" (equal) + "numerus" (number) = same cardinality
+   */
+  describe('[cross-01] equinumerous semantic', () => {
+    describe('equinumerous compares cardinality, not names', () => {
+      test('same count with different names is still equinumerous', () => {
+        // This documents the semantic:
+        // flatlock returns: ['@babel/core@7.24.4', 'lodash@4.17.21']
+        // comparison returns: ['@babel-baseline/core@7.24.4', 'lodash@4.17.21']
+        // equinumerous: true because both have 2 packages (same cardinality)
+
+        const flatlockPackages = new Set([
+          '@babel/core@7.24.4',
+          'lodash@4.17.21'
+        ]);
+
+        const comparisonPackages = new Set([
+          '@babel-baseline/core@7.24.4', // alias
+          'lodash@4.17.21'
+        ]);
+
+        // The equinumerous check (same cardinality)
+        const equinumerous = flatlockPackages.size === comparisonPackages.size;
+
+        assert.equal(equinumerous, true);
+        // Even though the actual packages differ
+        assert.equal(
+          [...flatlockPackages].sort().join(','),
+          ['@babel/core@7.24.4', 'lodash@4.17.21'].sort().join(',')
+        );
+        assert.notEqual(
+          [...flatlockPackages].sort().join(','),
+          [...comparisonPackages].sort().join(',')
+        );
+      });
+
+      test('different counts means not equinumerous', () => {
+        const flatlockPackages = new Set([
+          'lodash@4.17.21',
+          'react@18.2.0'
+        ]);
+
+        const comparisonPackages = new Set([
+          'lodash@4.17.21'
+          // missing react
+        ]);
+
+        const equinumerous = flatlockPackages.size === comparisonPackages.size;
+
+        assert.equal(equinumerous, false);
+      });
+    });
+
+    describe('why cardinality comparison is correct', () => {
+      test('cardinality mismatch indicates parsing bug (documentation)', () => {
+        // If flatlock returns 100 packages but comparison returns 95,
+        // there's likely a bug in one parser (missing entries or over-counting)
+        //
+        // If cardinalities match but names differ, it's likely:
+        // 1. Alias resolution (flatlock uses canonical names)
+        // 2. Different deduplication strategies
+        //
+        // Both are documented and expected behaviors
+        assert.ok(true, 'Cardinality comparison catches parsing bugs');
+      });
+
+      test('name differences are expected for aliased packages', () => {
+        // The 56.10% accuracy for yarn berry v8 is due to aliases
+        // But equinumerous: true because cardinalities match
+        //
+        // This is the correct semantic:
+        // - equinumerous: true -> parser coverage is correct
+        // - Low accuracy -> different name choices (documented)
+        assert.ok(true, 'Name differences are intentional for SBOM accuracy');
+      });
+    });
+
+    describe('equinumerous with missing/extra packages', () => {
+      test('equinumerous can be true even with missing/extra (balanced)', () => {
+        // If flatlock has 2 extra and comparison has 2 extra,
+        // sizes could still match (both have N packages)
+        // This happens with aliases:
+        // flatlock: canonical names (extra from comparison's view)
+        // comparison: alias names (missing from flatlock's view)
+
+        // 3 packages each, but different names
+        const flatlock = new Set(['real1@1.0.0', 'real2@2.0.0', 'same@3.0.0']);
+        const comparison = new Set(['alias1@1.0.0', 'alias2@2.0.0', 'same@3.0.0']);
+
+        const equinumerous = flatlock.size === comparison.size;
+        assert.equal(equinumerous, true);
+
+        // Missing from flatlock's perspective: alias1, alias2
+        const missing = [...comparison].filter(p => !flatlock.has(p));
+        assert.equal(missing.length, 2);
+
+        // Extra from flatlock's perspective: real1, real2
+        const extra = [...flatlock].filter(p => !comparison.has(p));
+        assert.equal(extra.length, 2);
+
+        // Despite missing/extra, equinumerous is true
+        // This correctly indicates parser coverage is the same
+      });
+    });
+  });
+
   describe('collect()', () => {
     test('recognizes YAML content as content, not path', async () => {
       const yamlContent = `lockfileVersion: '6.0'

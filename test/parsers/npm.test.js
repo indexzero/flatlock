@@ -321,8 +321,8 @@ describe('npm parsers', () => {
       });
     });
 
-    describe('[cross-02] scoped packages', () => {
-      test('[cross-02] parses various scoped packages from v2 fixture', () => {
+    describe('[npm-06] scoped packages', () => {
+      test('[npm-06] parses various scoped packages from v2 fixture', () => {
         const content = loadFixture('package-lock.json.v2');
         const deps = [...fromPackageLock(content)];
 
