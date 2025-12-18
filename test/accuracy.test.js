@@ -2,6 +2,7 @@
  * Accuracy tests comparing flatlock against established parsers
  */
 
+import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import * as flatlock from '../src/index.js';
@@ -48,9 +49,15 @@ describe('accuracy tests', () => {
       const results = compareResults(arboristDeps, ourDeps);
       logComparison('npm v2 vs Arborist-style parsing', arboristDeps.size, ourDeps.size, results);
 
-      // Log result but don't fail - differences are expected
       t.diagnostic(
         `npm v2: arborist=${arboristDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
+
+      // Assert 100% accuracy
+      assert.equal(
+        results.accuracy,
+        1,
+        `npm v2: expected 100% accuracy, got ${(results.accuracy * 100).toFixed(2)}%`
       );
     });
 
@@ -76,6 +83,52 @@ describe('accuracy tests', () => {
 
       t.diagnostic(
         `npm v3: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
+
+      // Assert 100% accuracy
+      assert.equal(
+        results.accuracy,
+        1,
+        `npm v3: expected 100% accuracy, got ${(results.accuracy * 100).toFixed(2)}%`
+      );
+    });
+
+    test('v2 lockfile - compare against snyk-nodejs-lockfile-parser', async t => {
+      const lockfileContent = loadFixture('npm/package-lock.json.v2');
+      const pkgJsonContent = loadFixture('npm/package.json.v2');
+
+      // Our parser (unique by name@version)
+      const ourDeps = await collectOurs(lockfileContent, { path: 'package-lock.json' });
+
+      // Ground truth: snyk-nodejs-lockfile-parser
+      const snyk = await import('snyk-nodejs-lockfile-parser');
+      const depGraph = await snyk.parseNpmLockV2Project(pkgJsonContent, lockfileContent, {
+        includeDevDeps: true,
+        includeOptionalDeps: true,
+        strictOutOfSync: false
+      });
+
+      const snykDeps = new Set();
+      for (const pkg of depGraph.getPkgs()) {
+        // Skip root package
+        if (pkg.name === 'http-server') continue;
+        snykDeps.add(`${pkg.name}@${pkg.version}`);
+      }
+
+      const results = compareResults(snykDeps, ourDeps);
+      logComparison('npm v2 vs snyk-nodejs-lockfile-parser', snykDeps.size, ourDeps.size, results);
+
+      t.diagnostic(
+        `npm v2 snyk: snyk=${snykDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
+
+      // Assert 99.50% accuracy - INTENTIONAL DIVERGENCE
+      // flatlock includes 3 dev+peer packages (@types/node, react-dom, undici-types)
+      // that snyk excludes from its dependency graph
+      assert.equal(
+        (results.accuracy * 100).toFixed(2),
+        '99.50',
+        `npm v2 snyk: expected 99.50% accuracy (flatlock includes dev+peer deps snyk excludes), got ${(results.accuracy * 100).toFixed(2)}%`
       );
     });
   });
@@ -110,6 +163,13 @@ describe('accuracy tests', () => {
       t.diagnostic(
         `pnpm v6: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
       );
+
+      // Assert 100% accuracy
+      assert.equal(
+        results.accuracy,
+        1,
+        `pnpm v6: expected 100% accuracy, got ${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
 
     test('v9 lockfile - compare against @pnpm/lockfile-file', async t => {
@@ -138,6 +198,13 @@ describe('accuracy tests', () => {
 
       t.diagnostic(
         `pnpm v9: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
+
+      // Assert 100% accuracy
+      assert.equal(
+        results.accuracy,
+        1,
+        `pnpm v9: expected 100% accuracy, got ${(results.accuracy * 100).toFixed(2)}%`
       );
     });
   });
@@ -180,6 +247,13 @@ describe('accuracy tests', () => {
 
       t.diagnostic(
         `yarn classic: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
+      );
+
+      // Assert 100% accuracy
+      assert.equal(
+        results.accuracy,
+        1,
+        `yarn classic: expected 100% accuracy, got ${(results.accuracy * 100).toFixed(2)}%`
       );
     });
   });
@@ -227,6 +301,13 @@ describe('accuracy tests', () => {
       t.diagnostic(
         `yarn berry v5: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
       );
+
+      // Assert 100% accuracy
+      assert.equal(
+        results.accuracy,
+        1,
+        `yarn berry v5: expected 100% accuracy, got ${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
 
     test('v8 lockfile - compare against @yarnpkg/parsers', async t => {
@@ -269,19 +350,15 @@ describe('accuracy tests', () => {
       t.diagnostic(
         `yarn berry v8: expected=${expectedDeps.size}, ours=${ourDeps.size}, accuracy=${(results.accuracy * 100).toFixed(2)}%`
       );
-    });
-  });
 
-  describe('cross-validation with snyk-nodejs-lockfile-parser', () => {
-    test('npm lockfile cross-validation', async t => {
-      const content = loadFixture('npm/package-lock.json.v2');
-
-      const ourDeps = await collectOurs(content, { path: 'package-lock.json' });
-
-      // snyk parser requires both manifest and lockfile
-      // Since we don't have a manifest, just report our count
-      t.diagnostic(`npm v2 (ours): ${ourDeps.size} packages`);
-      t.diagnostic('snyk cross-validation skipped (requires package.json manifest)');
+      // Assert 56.10% accuracy - INTENTIONAL DIVERGENCE
+      // flatlock uses canonical names from resolution field, parseSyml uses alias names from keys
+      // This is correct for SBOM accuracy (see test/ground-truth.test.js Item 2)
+      assert.equal(
+        (results.accuracy * 100).toFixed(2),
+        '56.10',
+        `yarn berry v8: expected 56.10% accuracy (intentional divergence), got ${(results.accuracy * 100).toFixed(2)}%`
+      );
     });
   });
 
