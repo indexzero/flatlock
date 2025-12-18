@@ -16,6 +16,7 @@ const require = createRequire(import.meta.url);
 let Arborist = null;
 let readWantedLockfile = null;
 let cyclonedxCliPath = null;
+let yarnCore = null;
 
 /**
  * Try to load @npmcli/arborist (optional dependency)
@@ -62,6 +63,21 @@ function loadCycloneDxCliPath() {
     }
   }
   return cyclonedxCliPath || null;
+}
+
+/**
+ * Try to load @yarnpkg/core (optional dependency)
+ * @returns {Promise<typeof import('@yarnpkg/core') | null>}
+ */
+async function loadYarnCore() {
+  if (yarnCore === null) {
+    try {
+      yarnCore = await import('@yarnpkg/core');
+    } catch {
+      yarnCore = false; // Mark as unavailable
+    }
+  }
+  return yarnCore || null;
 }
 
 /**
@@ -270,11 +286,68 @@ async function getPackagesFromYarnClassic(content) {
 }
 
 /**
- * Get packages from yarn berry lockfile
+ * Get packages from yarn berry lockfile using @yarnpkg/core (official)
+ * Uses structUtils.parseDescriptor to properly identify workspace/link/portal packages
+ * @param {string} content - Lockfile content
+ * @returns {Promise<PackagesResult | null>}
+ */
+async function getPackagesFromYarnBerryCore(content) {
+  const core = await loadYarnCore();
+  if (!core) return null;
+
+  const { structUtils } = core;
+  const parsed = parseSyml(content);
+
+  const packages = new Set();
+  let workspaceCount = 0;
+
+  for (const [key, value] of Object.entries(parsed)) {
+    if (key === '__metadata') continue;
+
+    // Parse the first key in case of comma-separated entries
+    const firstKey = key.split(',')[0].trim();
+
+    try {
+      // Parse the descriptor using @yarnpkg/core
+      const descriptor = structUtils.parseDescriptor(firstKey, true);
+
+      // Check if this is a workspace/link/portal entry by looking at the range
+      // The range will be "workspace:path" or "npm:^1.0.0" etc.
+      const range = descriptor.range;
+      if (range.startsWith('workspace:') || range.startsWith('portal:') || range.startsWith('link:')) {
+        workspaceCount++;
+        continue;
+      }
+
+      // Also check the resolution field - some workspace packages have generic ranges (like "*")
+      // but their resolution points to workspace:path
+      const resolution = value.resolution || '';
+      if (resolution.includes('@workspace:') || resolution.includes('@portal:') || resolution.includes('@link:')) {
+        workspaceCount++;
+        continue;
+      }
+
+      // Get the package name using @yarnpkg/core's stringifyIdent
+      const name = structUtils.stringifyIdent(descriptor);
+      if (name && value.version) {
+        packages.add(`${name}@${value.version}`);
+      }
+    } catch {
+      // If @yarnpkg/core parsing fails, skip this entry
+      // This shouldn't happen for valid lockfiles
+      continue;
+    }
+  }
+
+  return { packages, workspaceCount, source: '@yarnpkg/core' };
+}
+
+/**
+ * Get packages from yarn berry lockfile using @yarnpkg/parsers (fallback)
  * @param {string} content - Lockfile content
  * @returns {Promise<PackagesResult>}
  */
-async function getPackagesFromYarnBerry(content) {
+async function getPackagesFromYarnBerryParsers(content) {
   const parsed = parseSyml(content);
 
   const packages = new Set();
@@ -284,11 +357,16 @@ async function getPackagesFromYarnBerry(content) {
     if (key === '__metadata') continue;
 
     // Skip workspace/link entries - flatlock only cares about external dependencies
+    // Keys look like: "@pkg@workspace:path" or "pkg@workspace:path"
+    // Resolutions look like: "@pkg@workspace:path" or "pkg@npm:1.0.0"
     const resolution = value.resolution || '';
     if (
-      resolution.startsWith('workspace:') ||
-      resolution.startsWith('portal:') ||
-      resolution.startsWith('link:')
+      key.includes('@workspace:') ||
+      key.includes('@portal:') ||
+      key.includes('@link:') ||
+      resolution.includes('@workspace:') ||
+      resolution.includes('@portal:') ||
+      resolution.includes('@link:')
     ) {
       workspaceCount++;
       continue;
@@ -302,6 +380,20 @@ async function getPackagesFromYarnBerry(content) {
   }
 
   return { packages, workspaceCount, source: '@yarnpkg/parsers' };
+}
+
+/**
+ * Get packages from yarn berry lockfile - tries @yarnpkg/core first, falls back to @yarnpkg/parsers
+ * @param {string} content - Lockfile content
+ * @returns {Promise<PackagesResult>}
+ */
+async function getPackagesFromYarnBerry(content) {
+  // Try @yarnpkg/core first (official yarn implementation)
+  const coreResult = await getPackagesFromYarnBerryCore(content);
+  if (coreResult) return coreResult;
+
+  // Fall back to @yarnpkg/parsers with manual filtering
+  return getPackagesFromYarnBerryParsers(content);
 }
 
 /**
@@ -480,18 +572,20 @@ export async function* compareAll(filepaths, options = {}) {
 
 /**
  * Check which optional comparison parsers are available
- * @returns {Promise<{ arborist: boolean, cyclonedx: boolean, pnpmLockfileFs: boolean }>}
+ * @returns {Promise<{ arborist: boolean, cyclonedx: boolean, pnpmLockfileFs: boolean, yarnCore: boolean }>}
  */
 export async function getAvailableParsers() {
-  const [arborist, pnpmLockfileFs] = await Promise.all([
+  const [arborist, pnpmLockfileFs, yarnCoreModule] = await Promise.all([
     loadArborist(),
-    loadPnpmLockfileFs()
+    loadPnpmLockfileFs(),
+    loadYarnCore()
   ]);
   const cyclonedx = loadCycloneDxCliPath();
 
   return {
     arborist: !!arborist,
     cyclonedx: !!cyclonedx,
-    pnpmLockfileFs: !!pnpmLockfileFs
+    pnpmLockfileFs: !!pnpmLockfileFs,
+    yarnCore: !!yarnCoreModule
   };
 }

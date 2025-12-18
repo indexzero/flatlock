@@ -80,11 +80,15 @@ export function* fromYarnBerryLock(input, _options = {}) {
     const name = parseLockfileKey(key);
     const { version, checksum, resolution } = pkg;
 
-    // Check if this is a link (workspace:, portal:, or link: protocol)
+    // Check if this is a local/workspace entry (workspace:, portal:, or link: protocol)
+    // The protocol appears after @ in both key and resolution: "pkg@workspace:..."
     const link =
-      resolution?.startsWith('workspace:') ||
-      resolution?.startsWith('portal:') ||
-      resolution?.startsWith('link:');
+      key.includes('@workspace:') ||
+      key.includes('@portal:') ||
+      key.includes('@link:') ||
+      resolution?.includes('@workspace:') ||
+      resolution?.includes('@portal:') ||
+      resolution?.includes('@link:');
 
     // Skip workspace/link entries - flatlock only cares about external dependencies
     if (link) continue;

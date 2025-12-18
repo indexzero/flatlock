@@ -449,28 +449,31 @@ describe('yarn berry parsers', () => {
         }
       });
 
-      // Note: The following tests document current behavior.
-      // The parser checks resolution?.startsWith('workspace:') but in real
-      // lockfiles, resolution is "name@workspace:path" (doesn't start with protocol).
-      // This is a known limitation - workspace/link entries are included.
-
-      test('v8 fixture includes workspace entries (current behavior)', () => {
+      test('v8 fixture excludes workspace entries', () => {
         const content = loadFixture('yarn.lock.v8');
         const deps = [...fromYarnBerryLock(content)];
 
-        // Current behavior: workspace entries ARE included because
-        // resolution is "name@workspace:path" not "workspace:path"
+        // Workspace entries should be filtered out (only external deps)
         const workspaceDeps = deps.filter(d => d.resolved?.includes('@workspace:'));
-        assert.ok(workspaceDeps.length > 0, 'Workspace entries are included (current behavior)');
+        assert.equal(workspaceDeps.length, 0, 'Workspace entries should be excluded');
       });
 
-      test('v8 fixture includes link entries (current behavior)', () => {
+      test('v8 fixture excludes link entries', () => {
         const content = loadFixture('yarn.lock.v8');
         const deps = [...fromYarnBerryLock(content)];
 
-        // Current behavior: link entries ARE included
+        // Link entries should be filtered out
         const linkDeps = deps.filter(d => d.resolved?.includes('@link:'));
-        assert.ok(linkDeps.length >= 0, 'Link entries may be included (current behavior)');
+        assert.equal(linkDeps.length, 0, 'Link entries should be excluded');
+      });
+
+      test('v8 fixture excludes portal entries', () => {
+        const content = loadFixture('yarn.lock.v8');
+        const deps = [...fromYarnBerryLock(content)];
+
+        // Portal entries should be filtered out
+        const portalDeps = deps.filter(d => d.resolved?.includes('@portal:'));
+        assert.equal(portalDeps.length, 0, 'Portal entries should be excluded');
       });
     });
 

@@ -199,6 +199,11 @@ describe('accuracy tests', () => {
         for (const [key, pkg] of Object.entries(lockfile)) {
           if (key === '__metadata') continue;
 
+          // Skip workspace/link/portal entries (local packages, not external deps)
+          if (key.includes('@workspace:') || key.includes('@link:') || key.includes('@portal:')) {
+            continue;
+          }
+
           // Extract name from key
           let name;
           if (key.startsWith('@')) {
@@ -236,6 +241,11 @@ describe('accuracy tests', () => {
 
         for (const [key, pkg] of Object.entries(lockfile)) {
           if (key === '__metadata') continue;
+
+          // Skip workspace/link/portal entries (local packages, not external deps)
+          if (key.includes('@workspace:') || key.includes('@link:') || key.includes('@portal:')) {
+            continue;
+          }
 
           let name;
           if (key.startsWith('@')) {
