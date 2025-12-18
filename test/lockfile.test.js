@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import * as flatlock from '../src/index.js';
+import { parseSpec } from '../src/parsers/pnpm.js';
 import { loadFixture } from './support.js';
 
 describe('flatlock', () => {
@@ -221,6 +222,128 @@ packages:
       assert.ok(deps.length > 0);
       assert.equal(deps[0].name, 'lodash');
       assert.equal(deps[0].version, '4.17.21');
+    });
+  });
+
+  describe('pnpm parseSpec edge cases', () => {
+    // v6+ format tests (@ separator)
+    test('parses simple unscoped package (v6+ format)', () => {
+      const result = parseSpec('/lodash@4.17.21');
+      assert.equal(result.name, 'lodash');
+      assert.equal(result.version, '4.17.21');
+    });
+
+    test('parses scoped package (v6+ format)', () => {
+      const result = parseSpec('/@babel/core@7.23.0');
+      assert.equal(result.name, '@babel/core');
+      assert.equal(result.version, '7.23.0');
+    });
+
+    test('parses without leading slash (v9 format)', () => {
+      const result = parseSpec('lodash@4.17.21');
+      assert.equal(result.name, 'lodash');
+      assert.equal(result.version, '4.17.21');
+    });
+
+    test('parses pnpm v9 key with single peer dependency suffix', () => {
+      // pnpm v9 adds peer dependency info in parentheses
+      const result = parseSpec('/@babel/core@7.23.0(@types/node@20.0.0)');
+      assert.equal(result.name, '@babel/core');
+      assert.equal(result.version, '7.23.0');
+    });
+
+    test('parses pnpm v9 key with multiple peer dependency suffixes', () => {
+      // Some packages have multiple peer dependencies
+      const result = parseSpec('/@aleph-alpha/config-css@0.18.4(@unocss/core@66.5.2)(postcss@8.5.6)');
+      assert.equal(result.name, '@aleph-alpha/config-css');
+      assert.equal(result.version, '0.18.4');
+    });
+
+    test('parses pnpm v9 key with complex nested peer suffix', () => {
+      // Real-world example with nested peer dependencies
+      const result = parseSpec('/@typescript-eslint/parser@8.32.1(eslint@9.27.0)(typescript@5.8.3)');
+      assert.equal(result.name, '@typescript-eslint/parser');
+      assert.equal(result.version, '8.32.1');
+    });
+
+    test('parses unscoped package with peer dependency suffix', () => {
+      const result = parseSpec('/postcss-load-config@6.0.1(postcss@8.5.6)');
+      assert.equal(result.name, 'postcss-load-config');
+      assert.equal(result.version, '6.0.1');
+    });
+
+    test('parses pnpm v9 key with deeply nested scoped peer', () => {
+      // Scoped packages in peer dependencies
+      const result = parseSpec('/@vue/compiler-sfc@3.5.16(typescript@5.8.3)');
+      assert.equal(result.name, '@vue/compiler-sfc');
+      assert.equal(result.version, '3.5.16');
+    });
+
+    // v5 format tests (/ separator)
+    test('parses simple unscoped package (v5 format)', () => {
+      const result = parseSpec('/lodash/4.17.21');
+      assert.equal(result.name, 'lodash');
+      assert.equal(result.version, '4.17.21');
+    });
+
+    test('parses scoped package (v5 format)', () => {
+      const result = parseSpec('/@babel/core/7.23.0');
+      assert.equal(result.name, '@babel/core');
+      assert.equal(result.version, '7.23.0');
+    });
+
+    test('parses v5 key with peer dependency suffix (underscore)', () => {
+      // pnpm v5 uses underscore for peer deps: pkg/version_peer@version
+      const result = parseSpec('/styled-jsx/3.0.9_react@17.0.2');
+      assert.equal(result.name, 'styled-jsx');
+      assert.equal(result.version, '3.0.9');
+    });
+
+    test('parses v5 key with multiple peer deps (underscore+plus)', () => {
+      // Multiple peers in v5: pkg/version_peer1@version+peer2@version
+      const result = parseSpec('/pkg/1.0.0_react-dom@17.0.2+react@17.0.2');
+      assert.equal(result.name, 'pkg');
+      assert.equal(result.version, '1.0.0');
+    });
+
+    test('parses v5 scoped package with peer suffix', () => {
+      const result = parseSpec('/@emotion/styled/10.0.27_react@17.0.2');
+      assert.equal(result.name, '@emotion/styled');
+      assert.equal(result.version, '10.0.27');
+    });
+
+    test('parses v5 prerelease version', () => {
+      // Prerelease versions in v5 format
+      const result = parseSpec('/@verdaccio/ui-theme/6.0.0-6-next.50');
+      assert.equal(result.name, '@verdaccio/ui-theme');
+      assert.equal(result.version, '6.0.0-6-next.50');
+    });
+
+    // Protocol and edge case tests
+    test('returns null for link: protocol', () => {
+      const result = parseSpec('link:packages/foo');
+      assert.equal(result.name, null);
+      assert.equal(result.version, null);
+    });
+
+    test('returns null for file: protocol', () => {
+      const result = parseSpec('file:../local-pkg');
+      assert.equal(result.name, null);
+      assert.equal(result.version, null);
+    });
+
+    test('returns null for bare scoped package without version', () => {
+      // Edge case: just a scoped name without version
+      const result = parseSpec('@babel/core');
+      assert.equal(result.name, null);
+      assert.equal(result.version, null);
+    });
+
+    test('handles package with @ in version (tarball URL)', () => {
+      // Some lockfiles might have unusual formats - ensure we get the last @
+      const result = parseSpec('/unusual-pkg@1.0.0-beta.1');
+      assert.equal(result.name, 'unusual-pkg');
+      assert.equal(result.version, '1.0.0-beta.1');
     });
   });
 

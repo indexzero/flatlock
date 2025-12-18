@@ -150,6 +150,9 @@ export async function collect(pathOrContent, options = {}) {
   return deps;
 }
 
+// Re-export compare API
+export { compare, compareAll, getAvailableParsers } from './compare.js';
+
 // Re-export lockfile key parsing utilities
 export {
   parseNpmKey,
