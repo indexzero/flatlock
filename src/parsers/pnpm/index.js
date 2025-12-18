@@ -20,13 +20,10 @@ import { parseSpecV6Plus } from './v6plus.js';
 
 /** @typedef {import('../types.js').Dependency} Dependency */
 
-// Re-export detection utilities
-export { detectVersion, usesAtSeparator, usesSnapshotsSplit, usesInlineSpecifiers, hasLeadingSlash } from './detect.js';
+// Public API: detectVersion for users who need to inspect lockfile version
+export { detectVersion } from './detect.js';
 
-// Re-export version-specific parsers
-export { parseSpecShrinkwrap, hasPeerSuffix, extractPeerSuffix } from './shrinkwrap.js';
-export { parseSpecV5, hasPeerSuffixV5, extractPeerSuffixV5 } from './v5.js';
-export { parseSpecV6Plus, hasPeerSuffixV6Plus, extractPeerSuffixV6Plus, parsePeerDependencies } from './v6plus.js';
+// Version-specific internals available via 'flatlock/parsers/pnpm/internal'
 
 /**
  * Parse pnpm package spec to extract name and version.
@@ -173,6 +170,15 @@ export function* fromPnpmLock(input, _options = {}) {
   // Detect version to determine where to look for packages
   const detected = detectVersion(lockfile);
 
+  // Select era-specific parser
+  // Each era has different peer suffix formats that parseSpec can't auto-detect
+  const parseSpecForEra =
+    detected.era === 'shrinkwrap'
+      ? parseSpecShrinkwrap
+      : detected.era === 'v5'
+        ? parseSpecV5
+        : parseSpecV6Plus;
+
   // Get packages object - location varies by version
   // v5, v6: packages section directly
   // v9: packages section has metadata, snapshots has relationships
@@ -189,7 +195,7 @@ export function* fromPnpmLock(input, _options = {}) {
   // Process packages section
   for (const [spec, pkg] of Object.entries(packages)) {
     // Skip if we couldn't parse name/version
-    const { name, version } = parseSpec(spec);
+    const { name, version } = parseSpecForEra(spec);
     if (!name || !version) continue;
 
     // Create dedup key
@@ -216,7 +222,7 @@ export function* fromPnpmLock(input, _options = {}) {
   // (they might have different resolution info)
   if (detected.era === 'v9') {
     for (const [spec, _snapshot] of Object.entries(snapshots)) {
-      const { name, version } = parseSpec(spec);
+      const { name, version } = parseSpecForEra(spec);
       if (!name || !version) continue;
 
       // Create dedup key

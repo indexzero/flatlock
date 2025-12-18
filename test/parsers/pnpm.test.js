@@ -15,33 +15,33 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-// Import all parser functions
 import yaml from 'js-yaml';
+
+// Public API
 import {
-  // Detection
   detectVersion,
-  usesAtSeparator,
-  usesSnapshotsSplit,
-  usesInlineSpecifiers,
-  hasLeadingSlash,
-  // Shrinkwrap v3/v4
-  parseSpecShrinkwrap,
-  hasPeerSuffix,
-  extractPeerSuffix,
-  // v5
-  parseSpecV5,
-  hasPeerSuffixV5,
-  extractPeerSuffixV5,
-  // v6+
-  parseSpecV6Plus,
-  hasPeerSuffixV6Plus,
-  extractPeerSuffixV6Plus,
-  parsePeerDependencies,
-  // Unified
   parseSpec,
   parseLockfileKey,
   fromPnpmLock,
 } from '../../src/parsers/pnpm.js';
+
+// Internal/advanced APIs for testing version-specific parsers
+import {
+  usesAtSeparator,
+  usesSnapshotsSplit,
+  usesInlineSpecifiers,
+  hasLeadingSlash,
+  parseSpecShrinkwrap,
+  hasPeerSuffix,
+  extractPeerSuffix,
+  parseSpecV5,
+  hasPeerSuffixV5,
+  extractPeerSuffixV5,
+  parseSpecV6Plus,
+  hasPeerSuffixV6Plus,
+  extractPeerSuffixV6Plus,
+  parsePeerDependencies,
+} from '../../src/parsers/pnpm/internal.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const decodedDir = join(__dirname, '..', 'decoded', 'pnpm');
@@ -750,57 +750,127 @@ describe('pnpm parsers', () => {
   // Shrinkwrap fixture integration tests
   // ============================================================================
   describe('shrinkwrap fixtures', () => {
-    test('parses shrinkwrap v3 fixture', () => {
-      const content = loadFixture('shrinkwrap.yaml.v3');
-      const deps = [...fromPnpmLock(content)];
+    describe('real fixtures', () => {
+      test('parses real shrinkwrap v3 fixture from pnpm/headless', () => {
+        // Real fixture from https://github.com/pnpm/headless/blob/d575cf6f5d75cafb4e073063081fcbfa7f7a6149/shrinkwrap.yaml
+        const content = loadFixture('shrinkwrap.yaml');
+        const deps = [...fromPnpmLock(content)];
 
-      assert.ok(deps.length > 0, 'Should have dependencies');
+        // Should have ~724 packages
+        assert.ok(deps.length > 700, `Should have >700 dependencies, got ${deps.length}`);
 
-      // Check for known packages
-      const lodash = deps.find(d => d.name === 'lodash');
-      assert.ok(lodash, 'Should find lodash');
-      assert.equal(lodash.version, '4.17.21');
+        // Check for known packages in this fixture
+        const ramda = deps.find(d => d.name === 'ramda');
+        assert.ok(ramda, 'Should find ramda');
+        assert.equal(ramda.version, '0.25.0');
 
-      // Check for scoped package
-      const babelCore = deps.find(d => d.name === '@babel/core');
-      assert.ok(babelCore, 'Should find @babel/core');
-      assert.equal(babelCore.version, '7.15.8');
+        // Check for scoped package
+        const pnpmTypes = deps.find(d => d.name === '@pnpm/types');
+        assert.ok(pnpmTypes, 'Should find @pnpm/types');
+        assert.equal(pnpmTypes.version, '1.7.0');
+
+        // Check for devDependency
+        const typescript = deps.find(d => d.name === 'typescript');
+        assert.ok(typescript, 'Should find typescript');
+        assert.equal(typescript.version, '2.8.3');
+      });
+
+      test('detects shrinkwrap version from real fixture', () => {
+        const content = loadFixture('shrinkwrap.yaml');
+        const lockfile = yaml.load(content);
+        const detected = detectVersion(lockfile);
+
+        assert.equal(detected.era, 'shrinkwrap');
+        assert.equal(detected.version, 3);
+        assert.equal(detected.isShrinkwrap, true);
+      });
     });
 
-    test('parses shrinkwrap v4 fixture', () => {
-      const content = loadFixture('shrinkwrap.yaml.v4');
-      const deps = [...fromPnpmLock(content)];
+    describe('synthetic fixtures', () => {
+      test('parses synthetic shrinkwrap v3 fixture', () => {
+        // Synthetic fixture testing edge cases: peer suffixes with / and ! escape
+        const content = loadFixture('shrinkwrap.yaml.v3.synthetic');
+        const deps = [...fromPnpmLock(content)];
 
-      assert.ok(deps.length > 0, 'Should have dependencies');
+        // Should have 9 packages
+        assert.equal(deps.length, 9, `Expected 9 dependencies, got ${deps.length}`);
 
-      // Check for known packages
-      const express = deps.find(d => d.name === 'express');
-      assert.ok(express, 'Should find express');
-      assert.equal(express.version, '4.17.1');
+        // Check for known packages
+        const lodash = deps.find(d => d.name === 'lodash');
+        assert.ok(lodash, 'Should find lodash');
+        assert.equal(lodash.version, '4.17.21');
 
-      // Check for scoped package
-      const typesExpress = deps.find(d => d.name === '@types/express');
-      assert.ok(typesExpress, 'Should find @types/express');
-    });
+        // Check for scoped package
+        const babelCore = deps.find(d => d.name === '@babel/core');
+        assert.ok(babelCore, 'Should find @babel/core');
+        assert.equal(babelCore.version, '7.15.8');
 
-    test('detects shrinkwrap version from v3 fixture', () => {
-      const content = loadFixture('shrinkwrap.yaml.v3');
-      const lockfile = yaml.load(content);
-      const detected = detectVersion(lockfile);
+        // Check for package with peer suffix (v3 format: /name/version/peer@ver)
+        const webpackCli = deps.find(d => d.name === 'webpack-cli');
+        assert.ok(webpackCli, 'Should find webpack-cli (has peer suffix)');
+        assert.equal(webpackCli.version, '4.10.0');
 
-      assert.equal(detected.era, 'shrinkwrap');
-      assert.equal(detected.version, 3);
-      assert.equal(detected.isShrinkwrap, true);
-    });
+        // Check for package with scoped peer using ! escape
+        const jestWorker = deps.find(d => d.name === 'jest-worker');
+        assert.ok(jestWorker, 'Should find jest-worker (has scoped peer with ! escape)');
+        assert.equal(jestWorker.version, '29.0.0');
+      });
 
-    test('detects shrinkwrap version from v4 fixture', () => {
-      const content = loadFixture('shrinkwrap.yaml.v4');
-      const lockfile = yaml.load(content);
-      const detected = detectVersion(lockfile);
+      test('parses synthetic shrinkwrap v4 fixture', () => {
+        // Synthetic fixture testing v4 features: registry field, peer suffixes
+        const content = loadFixture('shrinkwrap.yaml.v4.synthetic');
+        const deps = [...fromPnpmLock(content)];
 
-      assert.equal(detected.era, 'shrinkwrap');
-      assert.equal(detected.version, 4);
-      assert.equal(detected.isShrinkwrap, true);
+        // Should have 10 packages
+        assert.equal(deps.length, 10, `Expected 10 dependencies, got ${deps.length}`);
+
+        // Check for known packages
+        const express = deps.find(d => d.name === 'express');
+        assert.ok(express, 'Should find express');
+        assert.equal(express.version, '4.17.1');
+
+        // Check for scoped package
+        const typesExpress = deps.find(d => d.name === '@types/express');
+        assert.ok(typesExpress, 'Should find @types/express');
+        assert.equal(typesExpress.version, '4.17.13');
+
+        // Check for package with peer suffix
+        const babelLoader = deps.find(d => d.name === 'babel-loader');
+        assert.ok(babelLoader, 'Should find babel-loader (has peer suffix)');
+        assert.equal(babelLoader.version, '8.2.5');
+
+        // Check for package with multiple scoped peers using ! and + escape
+        const tsLoader = deps.find(d => d.name === 'ts-loader');
+        assert.ok(tsLoader, 'Should find ts-loader (has multiple scoped peers)');
+        assert.equal(tsLoader.version, '9.4.0');
+      });
+
+      test('detects shrinkwrap v3 from synthetic fixture', () => {
+        const content = loadFixture('shrinkwrap.yaml.v3.synthetic');
+        const lockfile = yaml.load(content);
+        const detected = detectVersion(lockfile);
+
+        assert.equal(detected.era, 'shrinkwrap');
+        assert.equal(detected.version, 3);
+        assert.equal(detected.isShrinkwrap, true);
+      });
+
+      test('detects shrinkwrap v4 from synthetic fixture', () => {
+        const content = loadFixture('shrinkwrap.yaml.v4.synthetic');
+        const lockfile = yaml.load(content);
+        const detected = detectVersion(lockfile);
+
+        assert.equal(detected.era, 'shrinkwrap');
+        assert.equal(detected.version, 4);
+        assert.equal(detected.isShrinkwrap, true);
+      });
+
+      test('v4 fixture has registry field', () => {
+        const content = loadFixture('shrinkwrap.yaml.v4.synthetic');
+        const lockfile = yaml.load(content);
+
+        assert.equal(lockfile.registry, 'https://registry.npmjs.org/');
+      });
     });
   });
 });
