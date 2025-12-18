@@ -48,7 +48,7 @@ async function processFile(filepath, baseDir) {
     const result = await flatlock.compare(filepath);
     const rel = baseDir ? filepath.replace(baseDir + '/', '') : filepath;
 
-    if (result.identical === null) {
+    if (result.equinumerous === null) {
       // Unsupported type or no comparison available
       return {
         type: result.type,
@@ -57,7 +57,7 @@ async function processFile(filepath, baseDir) {
         flatlockCount: result.flatlockCount,
         comparisonCount: null,
         workspaceCount: 0,
-        identical: null,
+        equinumerous: null,
         onlyInFlatlock: null,
         onlyInComparison: null
       };
@@ -70,7 +70,7 @@ async function processFile(filepath, baseDir) {
       flatlockCount: result.flatlockCount,
       comparisonCount: result.comparisonCount,
       workspaceCount: result.workspaceCount,
-      identical: result.identical,
+      equinumerous: result.equinumerous,
       onlyInFlatlock: result.onlyInFlatlock,
       onlyInComparison: result.onlyInComparison
     };
@@ -169,13 +169,13 @@ Examples:
 
     totalComparison += result.comparisonCount;
 
-    if (result.identical) {
+    if (result.equinumerous) {
       matchCount++;
       if (!values.quiet) {
         const wsNote = result.workspaceCount > 0 ? ` (${result.workspaceCount} workspaces excluded)` : '';
         console.log(`✓  ${result.path}${wsNote}`);
         console.log(`   count: flatlock=${result.flatlockCount} ${result.source}=${result.comparisonCount}`);
-        console.log(`   sets:  identical`);
+        console.log(`   sets:  equinumerous`);
       }
     } else {
       mismatchCount++;
@@ -207,7 +207,7 @@ Examples:
 
   // Summary
   console.log('\n' + '='.repeat(70));
-  console.log(`SUMMARY: ${fileCount} files, ${matchCount} identical, ${mismatchCount} mismatches, ${errorCount} errors`);
+  console.log(`SUMMARY: ${fileCount} files, ${matchCount} equinumerous, ${mismatchCount} mismatches, ${errorCount} errors`);
   console.log(`  flatlock total:    ${totalFlatlock.toString().padStart(8)} packages`);
   if (totalComparison > 0) {
     console.log(`  comparison total:  ${totalComparison.toString().padStart(8)} packages`);

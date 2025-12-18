@@ -90,7 +90,7 @@ async function loadYarnCore() {
  * @typedef {Object} ComparisonResult
  * @property {string} type - Lockfile type
  * @property {string} [source] - Comparison source used (e.g., '@npmcli/arborist', '@cyclonedx/cyclonedx-npm')
- * @property {boolean | null} identical - Whether flatlock matches comparison parser
+ * @property {boolean | null} equinumerous - Whether flatlock and comparison have same cardinality
  * @property {number} flatlockCount - Number of packages found by flatlock
  * @property {number} [comparisonCount] - Number of packages found by comparison parser
  * @property {number} [workspaceCount] - Number of workspace packages skipped
@@ -556,18 +556,18 @@ export async function compare(filepath, options = {}) {
       comparisonResult = await getPackagesFromPnpm(content, filepath, options);
       break;
     default:
-      return { type, identical: null, flatlockCount: flatlockSet.size };
+      return { type, equinumerous: null, flatlockCount: flatlockSet.size };
   }
 
   const { packages: comparisonSet, workspaceCount, source } = comparisonResult;
   const onlyInFlatlock = new Set([...flatlockSet].filter(x => !comparisonSet.has(x)));
   const onlyInComparison = new Set([...comparisonSet].filter(x => !flatlockSet.has(x)));
-  const identical = onlyInFlatlock.size === 0 && onlyInComparison.size === 0;
+  const equinumerous = onlyInFlatlock.size === 0 && onlyInComparison.size === 0;
 
   return {
     type,
     source,
-    identical,
+    equinumerous,
     flatlockCount: flatlockSet.size,
     comparisonCount: comparisonSet.size,
     workspaceCount,
