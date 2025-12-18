@@ -210,7 +210,7 @@ describe('accuracy tests', () => {
   });
 
   describe('yarn classic (yarn.lock v1)', () => {
-    test('compare against @yarnpkg/lockfile', async t => {
+    test('[yarn-classic-03] compare against @yarnpkg/lockfile', async t => {
       const content = loadFixture('yarn/yarn.lock');
 
       const ourDeps = await collectOurs(content, { path: 'yarn.lock' });
@@ -310,7 +310,7 @@ describe('accuracy tests', () => {
       );
     });
 
-    test('v8 lockfile - compare against @yarnpkg/parsers', async t => {
+    test('[yarn-berry-02] v8 lockfile - compare against @yarnpkg/parsers', async t => {
       const content = loadFixture('yarn-berry/yarn.lock.v8');
 
       const ourDeps = await collectOurs(content, { path: 'yarn.lock' });

@@ -60,7 +60,7 @@ describe('pnpm parsers', () => {
   // ============================================================================
   // detectVersion tests
   // ============================================================================
-  describe('detectVersion', () => {
+  describe('[pnpm-01] detectVersion', () => {
     test('detects shrinkwrap v3', () => {
       const result = detectVersion({ shrinkwrapVersion: 3 });
       assert.equal(result.era, 'shrinkwrap');
@@ -276,7 +276,7 @@ describe('pnpm parsers', () => {
   // ============================================================================
   // hasPeerSuffix and extractPeerSuffix tests (shrinkwrap)
   // ============================================================================
-  describe('shrinkwrap peer suffix utilities', () => {
+  describe('[pnpm-03] shrinkwrap peer suffix utilities', () => {
     test('hasPeerSuffix returns false for simple package', () => {
       assert.equal(hasPeerSuffix('/lodash/4.17.21'), false);
     });
@@ -390,7 +390,7 @@ describe('pnpm parsers', () => {
   // ============================================================================
   // v5 peer suffix utilities
   // ============================================================================
-  describe('v5 peer suffix utilities', () => {
+  describe('[pnpm-03] v5 peer suffix utilities', () => {
     test('hasPeerSuffixV5 returns false for no underscore', () => {
       assert.equal(hasPeerSuffixV5('/lodash/4.17.21'), false);
     });
@@ -507,7 +507,7 @@ describe('pnpm parsers', () => {
   // ============================================================================
   // v6+ peer suffix utilities
   // ============================================================================
-  describe('v6+ peer suffix utilities', () => {
+  describe('[pnpm-03] v6+ peer suffix utilities', () => {
     test('hasPeerSuffixV6Plus returns false for no parens', () => {
       assert.equal(hasPeerSuffixV6Plus('/lodash@4.17.21'), false);
     });
@@ -566,7 +566,7 @@ describe('pnpm parsers', () => {
   // ============================================================================
   // Unified parseSpec tests
   // ============================================================================
-  describe('parseSpec (unified)', () => {
+  describe('[pnpm-02] parseSpec (unified)', () => {
     // v5 format (slash separator)
     test('parses v5 unscoped package', () => {
       const result = parseSpec('/lodash/4.17.21');
@@ -641,7 +641,7 @@ describe('pnpm parsers', () => {
   // ============================================================================
   // parseLockfileKey tests
   // ============================================================================
-  describe('parseLockfileKey', () => {
+  describe('[pnpm-02] parseLockfileKey', () => {
     test('returns name for v5 format', () => {
       assert.equal(parseLockfileKey('/@babel/core/7.23.0'), '@babel/core');
     });

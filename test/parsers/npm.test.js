@@ -35,7 +35,7 @@ describe('npm parsers', () => {
   // ============================================================================
   // parseLockfileKey tests
   // ============================================================================
-  describe('parseLockfileKey', () => {
+  describe('[npm-02] parseLockfileKey', () => {
     describe('simple packages', () => {
       test('parses unscoped package', () => {
         const result = parseLockfileKey('node_modules/lodash');
@@ -128,7 +128,7 @@ describe('npm parsers', () => {
   // fromPackageLock integration tests
   // ============================================================================
   describe('fromPackageLock', () => {
-    describe('version detection', () => {
+    describe('[npm-01] version detection', () => {
       test('returns empty for v1 format (uses dependencies, not packages)', () => {
         const content = loadFixture('package-lock.json.v1');
         const deps = [...fromPackageLock(content)];
@@ -158,8 +158,8 @@ describe('npm parsers', () => {
       });
     });
 
-    describe('dependency extraction', () => {
-      test('skips root package (empty path)', () => {
+    describe('[npm-03, npm-04] dependency extraction', () => {
+      test('[npm-03] skips root package (empty path)', () => {
         const lockfile = {
           lockfileVersion: 2,
           packages: {
@@ -173,7 +173,7 @@ describe('npm parsers', () => {
         assert.equal(deps[0].name, 'lodash');
       });
 
-      test('skips workspace definitions (no node_modules in path)', () => {
+      test('[npm-04] skips workspace definitions (no node_modules in path)', () => {
         const lockfile = {
           lockfileVersion: 2,
           packages: {
@@ -224,7 +224,7 @@ describe('npm parsers', () => {
         assert.equal(deps[0].resolved, 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz');
       });
 
-      test('yields link flag when true', () => {
+      test('[npm-04] yields link flag when true', () => {
         const lockfile = {
           lockfileVersion: 2,
           packages: {
@@ -321,8 +321,8 @@ describe('npm parsers', () => {
       });
     });
 
-    describe('scoped packages', () => {
-      test('parses various scoped packages from v2 fixture', () => {
+    describe('[cross-02] scoped packages', () => {
+      test('[cross-02] parses various scoped packages from v2 fixture', () => {
         const content = loadFixture('package-lock.json.v2');
         const deps = [...fromPackageLock(content)];
 
@@ -337,7 +337,7 @@ describe('npm parsers', () => {
       });
     });
 
-    describe('nested dependencies', () => {
+    describe('[npm-05] nested dependencies', () => {
       test('extracts nested dependencies correctly', () => {
         const lockfile = {
           lockfileVersion: 2,

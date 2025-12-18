@@ -41,7 +41,7 @@ import { detectVersion } from '../src/parsers/pnpm/index.js';
  * Reference: yarn berry source code - Project.ts setupResolutions()
  * The resolution field is the "locator" - the canonical package identifier.
  */
-describe('Item 1: yarn berry alias resolution', () => {
+describe('[yarn-berry-01] yarn berry alias resolution', () => {
   describe('parseResolution extracts canonical name from resolution field', () => {
     test('unscoped npm package', () => {
       const resolution = 'lodash@npm:4.17.21';
@@ -298,7 +298,7 @@ describe('Item 1: yarn berry alias resolution', () => {
  *
  * Reference: npm alias feature - `npm install alias@npm:real-package@version`
  */
-describe('Item 2: intentional divergence from parseSyml', () => {
+describe('[yarn-berry-02] intentional divergence from parseSyml', () => {
   describe('parseSyml returns KEY names, flatlock returns RESOLUTION names', () => {
     test('parseSyml returns raw object with alias name as key', () => {
       const lockfile = `__metadata:
@@ -488,7 +488,7 @@ describe('Item 2: intentional divergence from parseSyml', () => {
  *   - Project.ts lines 385-418: setupResolutions() populates originalPackages
  *   - structUtils.ts: parseLocator(), stringifyIdent()
  */
-describe('Item 3: @yarnpkg/core ground truth parity', () => {
+describe('[yarn-berry-03] @yarnpkg/core ground truth parity', () => {
   describe('resolution field is yarn Locator', () => {
     test('resolution format matches yarn locator pattern: name@protocol:reference', () => {
       // Yarn locator format: @scope/name@protocol:reference
@@ -649,7 +649,7 @@ describe('Item 3: @yarnpkg/core ground truth parity', () => {
  *   - Part 4: Why Project.find() Fails for Standalone Lockfiles
  *   - Part 8: Honest Assessment - "Standalone lockfile-to-Package parsing - No public API"
  */
-describe('Item 4: setupResolutions() private API usage', () => {
+describe('[yarn-berry-04] setupResolutions() private API usage', () => {
   describe('why private API is necessary', () => {
     test('Project.find() requires matching package.json (documentation)', () => {
       // Project.find() does:
@@ -737,7 +737,7 @@ describe('Item 4: setupResolutions() private API usage', () => {
  *   - packages section: static package metadata
  *   - snapshots section: peer dep combinations actually installed
  */
-describe('Item 5: pnpm snapshot inclusion', () => {
+describe('[pnpm-04] pnpm snapshot inclusion', () => {
   describe('v9 lockfile structure', () => {
     test('detectVersion identifies v9 format', () => {
       const lockfile = {
@@ -942,7 +942,7 @@ describe('Item 5: pnpm snapshot inclusion', () => {
  *   - Protocols: npm:, workspace:, portal:, link:, patch:, file:, exec:, git:
  *   - patch: can wrap any other protocol
  */
-describe('Item 6: patch: protocol nested reference', () => {
+describe('[yarn-berry-05] patch: protocol nested reference', () => {
   describe('parseLockfileKey finds FIRST protocol', () => {
     test('patch: protocol with nested npm: reference', () => {
       const key = 'pkg@patch:pkg@npm:1.0.0#./fix.patch';
@@ -1025,7 +1025,7 @@ describe('Item 6: patch: protocol nested reference', () => {
  * Reference: yarn berry protocols
  *   - https://yarnpkg.com/features/protocols
  */
-describe('Item 7: portal/link/workspace filtering', () => {
+describe('[yarn-berry-06] portal/link/workspace filtering', () => {
   describe('yarn berry workspace: protocol', () => {
     test('workspace: entries are filtered from output', () => {
       const lockfile = `__metadata:
@@ -1151,7 +1151,7 @@ describe('Item 7: portal/link/workspace filtering', () => {
  *
  * Reference: compare.js workspace filtering
  */
-describe('Item 8: workspace exclusion counts', () => {
+describe('[yarn-berry-07, pnpm-04] workspace exclusion counts', () => {
   describe('yarn berry workspace exclusion', () => {
     test('external packages counted, workspaces excluded', () => {
       const lockfile = `__metadata:
@@ -1250,7 +1250,7 @@ describe('Item 8: workspace exclusion counts', () => {
  * Reference: compare.js equinumerous calculation
  * Etymology: Latin "equi-" (equal) + "numerus" (number) = same cardinality
  */
-describe('Item 9: equinumerous semantic', () => {
+describe('[cross-01] equinumerous semantic', () => {
   describe('equinumerous compares cardinality, not names', () => {
     test('same count with different names is still equinumerous', () => {
       // This documents the semantic:

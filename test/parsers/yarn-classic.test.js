@@ -66,7 +66,7 @@ describe('yarn classic parsers', () => {
       });
     });
 
-    describe('multiple version ranges', () => {
+    describe('[yarn-classic-01] multiple version ranges', () => {
       test('parses first from multiple ranges', () => {
         const result = parseLockfileKey('@babel/core@^7.0.0, @babel/core@^7.12.3');
         assert.equal(result, '@babel/core');
@@ -290,7 +290,7 @@ lodash@^4.17.21:
       });
     });
 
-    describe('protocol handling', () => {
+    describe('[yarn-classic-02] protocol handling', () => {
       // Use pre-parsed objects because @yarnpkg/lockfile can't parse
       // certain synthetic formats with file:/link: protocols in keys
 
@@ -384,7 +384,7 @@ lodash@^4.17.21:
       });
     });
 
-    describe('multiple version ranges handling', () => {
+    describe('[yarn-classic-01] multiple version ranges handling', () => {
       test('handles entries with multiple version ranges', () => {
         const content = `# yarn lockfile v1
 

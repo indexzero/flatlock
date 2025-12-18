@@ -211,12 +211,11 @@ packages:
       });
 
       test('fromPnpmLock parses directly', () => {
-        const content = `
-  lockfileVersion: '6.0'
-  packages:
-    /lodash@4.17.21:
-      resolution: { integrity: sha512-test, tarball: https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz }
-  `;
+        const content = `lockfileVersion: '6.0'
+packages:
+  /lodash@4.17.21:
+    resolution: { integrity: sha512-test, tarball: https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz }
+`;
 
         const deps = [...flatlock.fromPnpmLock(content)];
         assert.ok(deps.length > 0);
@@ -241,14 +240,13 @@ packages:
       });
 
       test('fromYarnClassicLock parses directly', () => {
-        const content = `
-  # yarn lockfile v1
+        const content = `# yarn lockfile v1
 
-  lodash@^4.17.21:
-    version "4.17.21"
-    resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz"
-    integrity sha512-test123
-  `;
+lodash@^4.17.21:
+  version "4.17.21"
+  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz"
+  integrity sha512-test123
+`;
 
         const deps = [...flatlock.fromYarnClassicLock(content)];
         assert.equal(deps.length, 1);
@@ -270,15 +268,14 @@ packages:
       });
 
       test('fromYarnBerryLock parses directly', () => {
-        const content = `
-  __metadata:
-    version: 6
+        const content = `__metadata:
+  version: 6
 
-  "lodash@npm:^4.17.21":
-    version: 4.17.21
-    resolution: "lodash@npm:4.17.21"
-    checksum: sha512-test123
-  `;
+"lodash@npm:^4.17.21":
+  version: 4.17.21
+  resolution: "lodash@npm:4.17.21"
+  checksum: sha512-test123
+`;
 
         const deps = [...flatlock.fromYarnBerryLock(content)];
         assert.equal(deps.length, 1);
@@ -287,13 +284,12 @@ packages:
       });
 
       test('fromYarnLock auto-detects berry', () => {
-        const content = `
-  __metadata:
-    version: 6
+        const content = `__metadata:
+  version: 6
 
-  "lodash@npm:^4.17.21":
-    version: 4.17.21
-  `;
+"lodash@npm:^4.17.21":
+  version: 4.17.21
+`;
 
         const deps = [...flatlock.fromYarnLock(content)];
         assert.equal(deps.length, 1);
@@ -301,12 +297,11 @@ packages:
       });
 
       test('fromYarnLock auto-detects classic', () => {
-        const content = `
-  # yarn lockfile v1
+        const content = `# yarn lockfile v1
 
-  lodash@^4.17.21:
-    version "4.17.21"
-  `;
+lodash@^4.17.21:
+  version "4.17.21"
+`;
 
         const deps = [...flatlock.fromYarnLock(content)];
         assert.equal(deps.length, 1);
