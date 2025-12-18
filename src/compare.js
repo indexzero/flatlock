@@ -286,60 +286,77 @@ async function getPackagesFromYarnClassic(content) {
 }
 
 /**
- * Get packages from yarn berry lockfile using @yarnpkg/core (official)
- * Uses structUtils.parseDescriptor to properly identify workspace/link/portal packages
+ * Get packages from yarn berry lockfile using @yarnpkg/core Project.originalPackages
+ *
+ * This is the equivalent of Arborist.loadVirtual() - loads yarn's internal representation.
+ *
+ * Key insight: By calling setupResolutions() directly (a private method), we can populate
+ * originalPackages from the lockfile WITHOUT requiring a valid project setup. This gives
+ * us yarn's ground truth package data.
+ *
  * @param {string} content - Lockfile content
+ * @param {CompareOptions} [options] - Options
  * @returns {Promise<PackagesResult | null>}
  */
-async function getPackagesFromYarnBerryCore(content) {
+async function getPackagesFromYarnBerryCore(content, options = {}) {
   const core = await loadYarnCore();
   if (!core) return null;
 
-  const { structUtils } = core;
-  const parsed = parseSyml(content);
+  const { Configuration, Project, structUtils } = core;
 
-  const packages = new Set();
-  let workspaceCount = 0;
+  // Create temp directory with yarn.lock and minimal package.json
+  const tmpDir = options.tmpDir || (await mkdtemp(join(tmpdir(), 'flatlock-yarn-')));
+  const lockPath = join(tmpDir, 'yarn.lock');
+  const pkgPath = join(tmpDir, 'package.json');
 
-  for (const [key, value] of Object.entries(parsed)) {
-    if (key === '__metadata') continue;
+  try {
+    await writeFile(lockPath, content);
+    // Minimal package.json - only needed for Configuration.find
+    await writeFile(pkgPath, JSON.stringify({ name: 'flatlock-temp', version: '0.0.0', private: true }));
 
-    // Parse the first key in case of comma-separated entries
-    const firstKey = key.split(',')[0].trim();
+    // Load configuration
+    const configuration = await Configuration.find(tmpDir, null);
 
-    try {
-      // Parse the descriptor using @yarnpkg/core
-      const descriptor = structUtils.parseDescriptor(firstKey, true);
+    // Create project manually (don't use Project.find which calls setupWorkspaces)
+    const project = new Project(tmpDir, { configuration });
 
-      // Check if this is a workspace/link/portal entry by looking at the range
-      // The range will be "workspace:path" or "npm:^1.0.0" etc.
-      const range = descriptor.range;
-      if (range.startsWith('workspace:') || range.startsWith('portal:') || range.startsWith('link:')) {
+    // Call setupResolutions directly - this parses the lockfile and populates originalPackages
+    // This is a private method but it's the only way to get ground truth without a full project
+    await project['setupResolutions']();
+
+    const packages = new Set();
+    let workspaceCount = 0;
+
+    // Iterate over originalPackages - this is yarn's ground truth from the lockfile
+    for (const pkg of project.originalPackages.values()) {
+      const ref = pkg.reference;
+
+      // Check for workspace/link/portal protocols
+      if (ref.startsWith('workspace:') || ref.startsWith('link:') || ref.startsWith('portal:')) {
         workspaceCount++;
         continue;
       }
 
-      // Also check the resolution field - some workspace packages have generic ranges (like "*")
-      // but their resolution points to workspace:path
-      const resolution = value.resolution || '';
-      if (resolution.includes('@workspace:') || resolution.includes('@portal:') || resolution.includes('@link:')) {
-        workspaceCount++;
+      // Skip virtual packages (peer dependency variants)
+      if (structUtils.isVirtualLocator(pkg)) {
         continue;
       }
 
-      // Get the package name using @yarnpkg/core's stringifyIdent
-      const name = structUtils.stringifyIdent(descriptor);
-      if (name && value.version) {
-        packages.add(`${name}@${value.version}`);
+      const name = structUtils.stringifyIdent(pkg);
+      if (name && pkg.version) {
+        packages.add(`${name}@${pkg.version}`);
       }
-    } catch {
-      // If @yarnpkg/core parsing fails, skip this entry
-      // This shouldn't happen for valid lockfiles
-      continue;
+    }
+
+    return { packages, workspaceCount, source: '@yarnpkg/core' };
+  } catch (err) {
+    // If @yarnpkg/core fails (e.g., incompatible lockfile), return null to fall back
+    return null;
+  } finally {
+    if (!options.tmpDir) {
+      await rm(tmpDir, { recursive: true, force: true });
     }
   }
-
-  return { packages, workspaceCount, source: '@yarnpkg/core' };
 }
 
 /**
@@ -385,11 +402,12 @@ async function getPackagesFromYarnBerryParsers(content) {
 /**
  * Get packages from yarn berry lockfile - tries @yarnpkg/core first, falls back to @yarnpkg/parsers
  * @param {string} content - Lockfile content
+ * @param {CompareOptions} [options] - Options
  * @returns {Promise<PackagesResult>}
  */
-async function getPackagesFromYarnBerry(content) {
-  // Try @yarnpkg/core first (official yarn implementation)
-  const coreResult = await getPackagesFromYarnBerryCore(content);
+async function getPackagesFromYarnBerry(content, options = {}) {
+  // Try @yarnpkg/core first (official yarn implementation with Project.restoreInstallState)
+  const coreResult = await getPackagesFromYarnBerryCore(content, options);
   if (coreResult) return coreResult;
 
   // Fall back to @yarnpkg/parsers with manual filtering
@@ -532,7 +550,7 @@ export async function compare(filepath, options = {}) {
       comparisonResult = await getPackagesFromYarnClassic(content);
       break;
     case Type.YARN_BERRY:
-      comparisonResult = await getPackagesFromYarnBerry(content);
+      comparisonResult = await getPackagesFromYarnBerry(content, options);
       break;
     case Type.PNPM:
       comparisonResult = await getPackagesFromPnpm(content, filepath, options);

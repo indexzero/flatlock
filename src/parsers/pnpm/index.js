@@ -36,43 +36,78 @@ export { detectVersion } from './detect.js';
  * 2. If spec contains '@' after position 0 and no '/' after the '@' -> v6+ format
  * 3. Otherwise -> v5 or earlier format (slash separator)
  *
- * Supports multiple pnpm lockfile versions:
- *   shrinkwrap v3/v4 format (slash separator, peer suffix with /):
- *     "/lodash/4.17.21" -> { name: "lodash", version: "4.17.21" }
- *     "/foo/1.0.0/bar@2.0.0" -> { name: "foo", version: "1.0.0" }
- *
- *   v5.x format (slash separator, peer suffix with _):
- *     "/@babel/core/7.23.0" -> { name: "@babel/core", version: "7.23.0" }
- *     "/pkg/1.0.0_peer@2.0.0" -> { name: "pkg", version: "1.0.0" }
- *
- *   v6+ format (@ separator):
- *     "/@babel/core@7.23.0" -> { name: "@babel/core", version: "7.23.0" }
- *     "/lodash@4.17.21" -> { name: "lodash", version: "4.17.21" }
- *
- *   v9+ format (no leading slash, peer suffix in parens):
- *     "@babel/core@7.23.0(@types/node@20.0.0)" -> { name: "@babel/core", version: "7.23.0" }
- *
- *   Special protocols (skipped):
- *     "link:packages/foo" -> { name: null, version: null }
- *     "file:../local-pkg" -> { name: null, version: null }
- *
  * @param {string} spec - Package spec from pnpm lockfile
  * @returns {{ name: string | null, version: string | null }}
  *
  * @example
- * // v5 format
+ * // v5 format - unscoped package
  * parseSpec('/lodash/4.17.21')
  * // => { name: 'lodash', version: '4.17.21' }
  *
  * @example
- * // v6 format
+ * // v5 format - scoped package
+ * parseSpec('/@babel/core/7.23.0')
+ * // => { name: '@babel/core', version: '7.23.0' }
+ *
+ * @example
+ * // v5 format - with peer dependency suffix (underscore)
+ * parseSpec('/styled-jsx/3.0.9_react@17.0.2')
+ * // => { name: 'styled-jsx', version: '3.0.9' }
+ *
+ * @example
+ * // v6 format - unscoped package (with leading slash)
+ * parseSpec('/lodash@4.17.21')
+ * // => { name: 'lodash', version: '4.17.21' }
+ *
+ * @example
+ * // v6 format - scoped package
  * parseSpec('/@babel/core@7.23.0')
  * // => { name: '@babel/core', version: '7.23.0' }
  *
  * @example
- * // v9 format
+ * // v9 format - unscoped package (no leading slash)
+ * parseSpec('lodash@4.17.21')
+ * // => { name: 'lodash', version: '4.17.21' }
+ *
+ * @example
+ * // v9 format - scoped package (no leading slash)
+ * parseSpec('@babel/core@7.23.0')
+ * // => { name: '@babel/core', version: '7.23.0' }
+ *
+ * @example
+ * // v9 format - with peer dependency suffix (parentheses)
  * parseSpec('@babel/core@7.23.0(@types/node@20.0.0)')
  * // => { name: '@babel/core', version: '7.23.0' }
+ *
+ * @example
+ * // v9 format - multiple peer dependencies
+ * parseSpec('@testing-library/react@14.0.0(react-dom@18.2.0)(react@18.2.0)')
+ * // => { name: '@testing-library/react', version: '14.0.0' }
+ *
+ * @example
+ * // Shrinkwrap v3/v4 format - with peer suffix (slash)
+ * parseSpec('/foo/1.0.0/bar@2.0.0')
+ * // => { name: 'foo', version: '1.0.0' }
+ *
+ * @example
+ * // link: protocol - skipped (returns null)
+ * parseSpec('link:packages/my-pkg')
+ * // => { name: null, version: null }
+ *
+ * @example
+ * // file: protocol - skipped (returns null)
+ * parseSpec('file:../local-package')
+ * // => { name: null, version: null }
+ *
+ * @example
+ * // Null input
+ * parseSpec(null)
+ * // => { name: null, version: null }
+ *
+ * @example
+ * // Prerelease version
+ * parseSpec('@verdaccio/ui-theme@6.0.0-6-next.50')
+ * // => { name: '@verdaccio/ui-theme', version: '6.0.0-6-next.50' }
  */
 export function parseSpec(spec) {
   // Handle null/undefined input

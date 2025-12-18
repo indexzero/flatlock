@@ -72,6 +72,41 @@
  * // Prerelease version
  * parseSpecV6Plus('/unusual-pkg@1.0.0-beta.1')
  * // => { name: 'unusual-pkg', version: '1.0.0-beta.1' }
+ *
+ * @example
+ * // Package with hyphenated name
+ * parseSpecV6Plus('/string-width@4.2.3')
+ * // => { name: 'string-width', version: '4.2.3' }
+ *
+ * @example
+ * // Scoped package with hyphenated name
+ * parseSpecV6Plus('@babel/helper-compilation-targets@7.23.6')
+ * // => { name: '@babel/helper-compilation-targets', version: '7.23.6' }
+ *
+ * @example
+ * // Complex nested peer dependencies (v9)
+ * parseSpecV6Plus('@testing-library/react@14.0.0(react-dom@18.2.0)(react@18.2.0)')
+ * // => { name: '@testing-library/react', version: '14.0.0' }
+ *
+ * @example
+ * // link: protocol - skipped
+ * parseSpecV6Plus('link:packages/my-pkg')
+ * // => { name: null, version: null }
+ *
+ * @example
+ * // file: protocol - skipped
+ * parseSpecV6Plus('file:../local-package')
+ * // => { name: null, version: null }
+ *
+ * @example
+ * // Null input
+ * parseSpecV6Plus(null)
+ * // => { name: null, version: null }
+ *
+ * @example
+ * // Build metadata version
+ * parseSpecV6Plus('esbuild@0.19.12+sha512.abc123')
+ * // => { name: 'esbuild', version: '0.19.12+sha512.abc123' }
  */
 export function parseSpecV6Plus(spec) {
   // Handle null/undefined input
@@ -173,12 +208,59 @@ export function extractPeerSuffixV6Plus(spec) {
  * @returns {Array<{name: string, version: string}>} Array of parsed peer dependencies
  *
  * @example
+ * // Single scoped peer
  * parsePeerDependencies('(@types/node@20.0.0)')
  * // => [{ name: '@types/node', version: '20.0.0' }]
  *
  * @example
+ * // Multiple unscoped peers
  * parsePeerDependencies('(react@18.2.0)(typescript@5.3.3)')
  * // => [{ name: 'react', version: '18.2.0' }, { name: 'typescript', version: '5.3.3' }]
+ *
+ * @example
+ * // Single unscoped peer
+ * parsePeerDependencies('(lodash@4.17.21)')
+ * // => [{ name: 'lodash', version: '4.17.21' }]
+ *
+ * @example
+ * // Multiple scoped peers
+ * parsePeerDependencies('(@babel/core@7.23.0)(@types/react@18.2.0)')
+ * // => [{ name: '@babel/core', version: '7.23.0' }, { name: '@types/react', version: '18.2.0' }]
+ *
+ * @example
+ * // Mixed scoped and unscoped peers
+ * parsePeerDependencies('(react@18.2.0)(@types/react@18.2.0)')
+ * // => [{ name: 'react', version: '18.2.0' }, { name: '@types/react', version: '18.2.0' }]
+ *
+ * @example
+ * // React ecosystem peers (common pattern)
+ * parsePeerDependencies('(react-dom@18.2.0)(react@18.2.0)')
+ * // => [{ name: 'react-dom', version: '18.2.0' }, { name: 'react', version: '18.2.0' }]
+ *
+ * @example
+ * // Many peers (complex component library)
+ * parsePeerDependencies('(@unocss/core@66.5.2)(postcss@8.5.6)(typescript@5.3.3)')
+ * // => [{ name: '@unocss/core', version: '66.5.2' }, { name: 'postcss', version: '8.5.6' }, { name: 'typescript', version: '5.3.3' }]
+ *
+ * @example
+ * // Prerelease peer version
+ * parsePeerDependencies('(next@14.0.0-canary.0)')
+ * // => [{ name: 'next', version: '14.0.0-canary.0' }]
+ *
+ * @example
+ * // Empty/null input
+ * parsePeerDependencies(null)
+ * // => []
+ *
+ * @example
+ * // No parentheses (invalid)
+ * parsePeerDependencies('react@18.2.0')
+ * // => []
+ *
+ * @example
+ * // Deeply scoped peer
+ * parsePeerDependencies('(@babel/helper-compilation-targets@7.23.6)')
+ * // => [{ name: '@babel/helper-compilation-targets', version: '7.23.6' }]
  */
 export function parsePeerDependencies(peerSuffix) {
   if (peerSuffix == null || typeof peerSuffix !== 'string') {

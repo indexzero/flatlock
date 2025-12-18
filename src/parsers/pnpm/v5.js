@@ -63,6 +63,41 @@
  * // Prerelease version
  * parseSpecV5('/@verdaccio/ui-theme/6.0.0-6-next.50')
  * // => { name: '@verdaccio/ui-theme', version: '6.0.0-6-next.50' }
+ *
+ * @example
+ * // Package with hyphenated name
+ * parseSpecV5('/string-width/4.2.3')
+ * // => { name: 'string-width', version: '4.2.3' }
+ *
+ * @example
+ * // Scoped package with hyphenated name
+ * parseSpecV5('/@babel/helper-compilation-targets/7.23.6')
+ * // => { name: '@babel/helper-compilation-targets', version: '7.23.6' }
+ *
+ * @example
+ * // Complex peer suffix with scoped peer
+ * parseSpecV5('/styled-components/5.3.6_@babel+core@7.23.0+react@18.2.0')
+ * // => { name: 'styled-components', version: '5.3.6' }
+ *
+ * @example
+ * // link: protocol - skipped
+ * parseSpecV5('link:packages/my-pkg')
+ * // => { name: null, version: null }
+ *
+ * @example
+ * // file: protocol - skipped
+ * parseSpecV5('file:../local-package')
+ * // => { name: null, version: null }
+ *
+ * @example
+ * // Null input
+ * parseSpecV5(null)
+ * // => { name: null, version: null }
+ *
+ * @example
+ * // Build metadata version
+ * parseSpecV5('/esbuild/0.19.12+sha512.abc123')
+ * // => { name: 'esbuild', version: '0.19.12+sha512.abc123' }
  */
 export function parseSpecV5(spec) {
   // Handle null/undefined input

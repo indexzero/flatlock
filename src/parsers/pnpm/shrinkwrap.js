@@ -53,6 +53,41 @@
  * // Scoped package with peer deps
  * parseSpecShrinkwrap('/@emotion/styled/10.0.27/react@17.0.2')
  * // => { name: '@emotion/styled', version: '10.0.27' }
+ *
+ * @example
+ * // Multiple peer dependencies
+ * parseSpecShrinkwrap('/styled-components/5.3.6/react-dom@17.0.2+react@17.0.2')
+ * // => { name: 'styled-components', version: '5.3.6' }
+ *
+ * @example
+ * // Package with hyphenated name
+ * parseSpecShrinkwrap('/string-width/4.2.3')
+ * // => { name: 'string-width', version: '4.2.3' }
+ *
+ * @example
+ * // Scoped package with hyphenated name
+ * parseSpecShrinkwrap('/@babel/helper-compilation-targets/7.23.6')
+ * // => { name: '@babel/helper-compilation-targets', version: '7.23.6' }
+ *
+ * @example
+ * // link: protocol - skipped
+ * parseSpecShrinkwrap('link:packages/my-pkg')
+ * // => { name: null, version: null }
+ *
+ * @example
+ * // file: protocol - skipped
+ * parseSpecShrinkwrap('file:../local-package')
+ * // => { name: null, version: null }
+ *
+ * @example
+ * // Null input
+ * parseSpecShrinkwrap(null)
+ * // => { name: null, version: null }
+ *
+ * @example
+ * // Empty string
+ * parseSpecShrinkwrap('')
+ * // => { name: null, version: null }
  */
 export function parseSpecShrinkwrap(spec) {
   // Handle null/undefined input

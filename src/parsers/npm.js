@@ -36,13 +36,68 @@
  *   pkg := name (unscoped)
  *     | @scope/name (scoped)
  *
- * Examples:
- *   - node_modules/lodash → "lodash"
- *   - node_modules/@babel/core → "@babel/core"
- *   - node_modules/foo/node_modules/@scope/bar → "@scope/bar"
- *
  * @param {string} path - Lockfile path key
  * @returns {string} Package name
+ *
+ * @example
+ * // Simple unscoped package
+ * parseLockfileKey('node_modules/lodash')
+ * // => 'lodash'
+ *
+ * @example
+ * // Scoped package
+ * parseLockfileKey('node_modules/@babel/core')
+ * // => '@babel/core'
+ *
+ * @example
+ * // Nested dependency (hoisted conflict resolution)
+ * parseLockfileKey('node_modules/foo/node_modules/bar')
+ * // => 'bar'
+ *
+ * @example
+ * // Nested scoped dependency
+ * parseLockfileKey('node_modules/foo/node_modules/@scope/bar')
+ * // => '@scope/bar'
+ *
+ * @example
+ * // Deeply nested dependency
+ * parseLockfileKey('node_modules/a/node_modules/b/node_modules/c')
+ * // => 'c'
+ *
+ * @example
+ * // Deeply nested scoped dependency
+ * parseLockfileKey('node_modules/a/node_modules/@types/node')
+ * // => '@types/node'
+ *
+ * @example
+ * // Workspace package path (definition)
+ * parseLockfileKey('packages/my-lib')
+ * // => 'my-lib'
+ *
+ * @example
+ * // Workspace nested dependency
+ * parseLockfileKey('packages/my-lib/node_modules/lodash')
+ * // => 'lodash'
+ *
+ * @example
+ * // Workspace nested scoped dependency
+ * parseLockfileKey('packages/my-lib/node_modules/@types/react')
+ * // => '@types/react'
+ *
+ * @example
+ * // Package with hyphenated name
+ * parseLockfileKey('node_modules/string-width')
+ * // => 'string-width'
+ *
+ * @example
+ * // Scoped package with hyphenated name
+ * parseLockfileKey('node_modules/@emotion/styled')
+ * // => '@emotion/styled'
+ *
+ * @example
+ * // Complex nested path
+ * parseLockfileKey('node_modules/@babel/core/node_modules/@babel/helper-compilation-targets')
+ * // => '@babel/helper-compilation-targets'
  */
 export function parseLockfileKey(path) {
   const parts = path.split('/');

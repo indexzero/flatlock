@@ -496,7 +496,10 @@ describe('yarn berry parsers', () => {
     });
 
     describe('aliased packages', () => {
-      test('handles baseline aliases', () => {
+      test('handles baseline aliases - returns real package name from resolution', () => {
+        // npm aliases: the key contains the alias (e.g., "@babel-baseline/core")
+        // but the resolution contains the real package name (e.g., "@babel/core")
+        // For SBOM accuracy, we use the resolution (real package name)
         const content = `__metadata:
   version: 8
 
@@ -507,7 +510,8 @@ describe('yarn berry parsers', () => {
         const deps = [...fromYarnBerryLock(content)];
 
         assert.equal(deps.length, 1);
-        assert.equal(deps[0].name, '@babel-baseline/core');
+        // Returns the real package name from resolution, not the alias from key
+        assert.equal(deps[0].name, '@babel/core');
         assert.equal(deps[0].version, '7.24.4');
       });
     });
