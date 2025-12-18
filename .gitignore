@@ -157,3 +157,10 @@ bin/tmp/
 # Spec files
 PLAN.md
 IMPLEMENTATION.md
+
+# Discovery pipeline data (large JSON files)
+test/discovery/data/*.json
+!test/discovery/data/.gitkeep
+
+# Discovery pipeline dependencies
+test/discovery/node_modules/

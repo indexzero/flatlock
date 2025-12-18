@@ -1,0 +1,20 @@
+{
+  "name": "@flatlock/discovery",
+  "version": "1.0.0",
+  "description": "Lockfile discovery pipeline for flatlock test fixtures",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "fetch-packuments": "node index.js --phase=1",
+    "discover-lockfiles": "node index.js --phase=3"
+  },
+  "dependencies": {
+    "npm-high-impact": "^1.0.1",
+    "p-limit": "^6.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
