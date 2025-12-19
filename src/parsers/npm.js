@@ -1,11 +1,4 @@
-/**
- * @typedef {Object} Dependency
- * @property {string} name - Package name
- * @property {string} version - Resolved version
- * @property {string} [integrity] - Integrity hash
- * @property {string} [resolved] - Resolution URL
- * @property {boolean} [link] - True if this is a symlink
- */
+/** @typedef {import('./types.js').Dependency} Dependency */
 
 /**
  * LIMITATION: Workspace symlinks are not yielded
@@ -43,13 +36,68 @@
  *   pkg := name (unscoped)
  *     | @scope/name (scoped)
  *
- * Examples:
- *   - node_modules/lodash → "lodash"
- *   - node_modules/@babel/core → "@babel/core"
- *   - node_modules/foo/node_modules/@scope/bar → "@scope/bar"
- *
  * @param {string} path - Lockfile path key
  * @returns {string} Package name
+ *
+ * @example
+ * // Simple unscoped package
+ * parseLockfileKey('node_modules/lodash')
+ * // => 'lodash'
+ *
+ * @example
+ * // Scoped package
+ * parseLockfileKey('node_modules/@babel/core')
+ * // => '@babel/core'
+ *
+ * @example
+ * // Nested dependency (hoisted conflict resolution)
+ * parseLockfileKey('node_modules/foo/node_modules/bar')
+ * // => 'bar'
+ *
+ * @example
+ * // Nested scoped dependency
+ * parseLockfileKey('node_modules/foo/node_modules/@scope/bar')
+ * // => '@scope/bar'
+ *
+ * @example
+ * // Deeply nested dependency
+ * parseLockfileKey('node_modules/a/node_modules/b/node_modules/c')
+ * // => 'c'
+ *
+ * @example
+ * // Deeply nested scoped dependency
+ * parseLockfileKey('node_modules/a/node_modules/@types/node')
+ * // => '@types/node'
+ *
+ * @example
+ * // Workspace package path (definition)
+ * parseLockfileKey('packages/my-lib')
+ * // => 'my-lib'
+ *
+ * @example
+ * // Workspace nested dependency
+ * parseLockfileKey('packages/my-lib/node_modules/lodash')
+ * // => 'lodash'
+ *
+ * @example
+ * // Workspace nested scoped dependency
+ * parseLockfileKey('packages/my-lib/node_modules/@types/react')
+ * // => '@types/react'
+ *
+ * @example
+ * // Package with hyphenated name
+ * parseLockfileKey('node_modules/string-width')
+ * // => 'string-width'
+ *
+ * @example
+ * // Scoped package with hyphenated name
+ * parseLockfileKey('node_modules/@emotion/styled')
+ * // => '@emotion/styled'
+ *
+ * @example
+ * // Complex nested path
+ * parseLockfileKey('node_modules/@babel/core/node_modules/@babel/helper-compilation-targets')
+ * // => '@babel/helper-compilation-targets'
  */
 export function parseLockfileKey(path) {
   const parts = path.split('/');
@@ -61,12 +109,12 @@ export function parseLockfileKey(path) {
 
 /**
  * Parse npm package-lock.json (v1, v2, v3)
- * @param {string} content - Lockfile content
+ * @param {string | object} input - Lockfile content string or pre-parsed object
  * @param {Object} [_options] - Parser options (unused, reserved for future use)
  * @returns {Generator<Dependency>}
  */
-export function* fromPackageLock(content, _options = {}) {
-  const lockfile = JSON.parse(content);
+export function* fromPackageLock(input, _options = {}) {
+  const lockfile = typeof input === 'string' ? JSON.parse(input) : input;
   const packages = lockfile.packages || {};
 
   for (const [path, pkg] of Object.entries(packages)) {

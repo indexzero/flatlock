@@ -5,18 +5,6 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import * as flatlock from '../src/index.js';
 
-/**
- * Get comparison parser name for type
- */
-function getComparisonName(type) {
-  switch (type) {
-    case 'npm': return '@npmcli/arborist';
-    case 'yarn-classic': return '@yarnpkg/lockfile';
-    case 'yarn-berry': return '@yarnpkg/parsers';
-    case 'pnpm': return 'js-yaml';
-    default: return 'unknown';
-  }
-}
 
 /**
  * Convert glob pattern to regex
@@ -59,18 +47,17 @@ async function processFile(filepath, baseDir) {
   try {
     const result = await flatlock.compare(filepath);
     const rel = baseDir ? filepath.replace(baseDir + '/', '') : filepath;
-    const comparisonName = getComparisonName(result.type);
 
-    if (result.identical === null) {
+    if (result.equinumerous === null) {
       // Unsupported type or no comparison available
       return {
         type: result.type,
         path: rel,
-        comparisonName,
+        source: result.source || 'unknown',
         flatlockCount: result.flatlockCount,
         comparisonCount: null,
         workspaceCount: 0,
-        identical: null,
+        equinumerous: null,
         onlyInFlatlock: null,
         onlyInComparison: null
       };
@@ -79,11 +66,11 @@ async function processFile(filepath, baseDir) {
     return {
       type: result.type,
       path: rel,
-      comparisonName,
+      source: result.source,
       flatlockCount: result.flatlockCount,
       comparisonCount: result.comparisonCount,
       workspaceCount: result.workspaceCount,
-      identical: result.identical,
+      equinumerous: result.equinumerous,
       onlyInFlatlock: result.onlyInFlatlock,
       onlyInComparison: result.onlyInComparison
     };
@@ -118,10 +105,10 @@ Options:
   -h, --help           Show this help
 
 Comparison parsers (workspace/link entries excluded from all):
-  npm:          @npmcli/arborist (loadVirtual)
+  npm:          @npmcli/arborist (preferred) or @cyclonedx/cyclonedx-npm
   yarn-classic: @yarnpkg/lockfile
   yarn-berry:   @yarnpkg/parsers
-  pnpm:         js-yaml
+  pnpm:         @pnpm/lockfile.fs (preferred) or js-yaml
 
 Examples:
   flatlock-cmp package-lock.json
@@ -175,25 +162,25 @@ Examples:
       if (!values.quiet) {
         console.log(`\n⚠️  ${result.path}`);
         console.log(`   flatlock: ${result.flatlockCount} packages`);
-        console.log(`   ${result.comparisonName}: unavailable`);
+        console.log(`   ${result.source}: unavailable`);
       }
       continue;
     }
 
     totalComparison += result.comparisonCount;
 
-    if (result.identical) {
+    if (result.equinumerous) {
       matchCount++;
       if (!values.quiet) {
         const wsNote = result.workspaceCount > 0 ? ` (${result.workspaceCount} workspaces excluded)` : '';
         console.log(`✓  ${result.path}${wsNote}`);
-        console.log(`   count: flatlock=${result.flatlockCount} ${result.comparisonName}=${result.comparisonCount}`);
-        console.log(`   sets:  identical`);
+        console.log(`   count: flatlock=${result.flatlockCount} ${result.source}=${result.comparisonCount}`);
+        console.log(`   sets:  equinumerous`);
       }
     } else {
       mismatchCount++;
       console.log(`\n❌ ${result.path}`);
-      console.log(`   count: flatlock=${result.flatlockCount} ${result.comparisonName}=${result.comparisonCount}`);
+      console.log(`   count: flatlock=${result.flatlockCount} ${result.source}=${result.comparisonCount}`);
       console.log(`   sets:  MISMATCH`);
 
       if (result.onlyInFlatlock.length > 0) {
@@ -207,7 +194,7 @@ Examples:
       }
 
       if (result.onlyInComparison.length > 0) {
-        console.log(`   only in ${result.comparisonName} (${result.onlyInComparison.length}):`);
+        console.log(`   only in ${result.source} (${result.onlyInComparison.length}):`);
         for (const pkg of result.onlyInComparison.slice(0, 10)) {
           console.log(`     - ${pkg}`);
         }
@@ -220,7 +207,7 @@ Examples:
 
   // Summary
   console.log('\n' + '='.repeat(70));
-  console.log(`SUMMARY: ${fileCount} files, ${matchCount} identical, ${mismatchCount} mismatches, ${errorCount} errors`);
+  console.log(`SUMMARY: ${fileCount} files, ${matchCount} equinumerous, ${mismatchCount} mismatches, ${errorCount} errors`);
   console.log(`  flatlock total:    ${totalFlatlock.toString().padStart(8)} packages`);
   if (totalComparison > 0) {
     console.log(`  comparison total:  ${totalComparison.toString().padStart(8)} packages`);
