@@ -7,16 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2025-01-05
+
 ### Added
-- `FlatlockSet` class for Set-like operations on lockfile dependencies
+- **`FlatlockSet` class** for Set-like operations on lockfile dependencies
   - Factory methods: `fromPath()`, `fromString()`
   - Set operations: `union()`, `intersection()`, `difference()`
   - Predicates: `isSubsetOf()`, `isSupersetOf()`, `isDisjointFrom()`
   - Traversal: `dependenciesOf()` for workspace-specific SBOM generation
-- Comprehensive test suite for FlatlockSet (48 test cases)
+- **pnpm parser rewrite** supporting all versions (shrinkwrap v3/v4 through v9)
+  - Modular architecture: `detect.js`, `shrinkwrap.js`, `v5.js`, `v6plus.js`
+  - Auto-detect format from spec patterns; handle all peer dependency suffix styles
+- **Comparison tooling** with ground-truth verification via native parsers
+  - Optional dependencies: `@pnpm/lockfile.fs`, `@yarnpkg/core`, `@cyclonedx/cyclonedx-npm`
+  - Superset detection: pnpm reachability divergence is expected behavior, not an error
+- **Documentation**: `doc/PNPM-LOCKFILE-VERSIONS.md` comprehensive pnpm lockfile format evolution
+- **Test reorganization**: per-parser test files, `test/SCENARIOS.md` documenting test coverage
 - Export `parseYarnClassic` function for standardized yarn classic lockfile parsing
 
 ### Changed
+- **Breaking**: Node.js 22+ required (dropped v20 support)
+- **Breaking**: Rename `identical` to `equinumerous` in comparison results (set-theoretic terminology)
+- CI matrix updated to test Node.js 22 and 24 on x64 and arm64
 - Parsers now accept pre-parsed lockfile objects for better performance (eliminates redundant parsing)
 - Consolidate `Dependency` type definition into `src/parsers/types.js`
 - Standardize `@yarnpkg/lockfile` parse function access across all modules via `parseYarnClassic`
@@ -73,7 +85,8 @@ Initial release of flatlock - the Matlock of lockfile parsers.
 - Designed for use cases that need package enumeration without dependency resolution: SBOM generation, vulnerability scanning, license compliance, integrity verification
 - For full dependency tree analysis ("why is X installed?"), use `@npmcli/arborist` instead
 
-[unreleased]: https://github.com/indexzero/flatlock/compare/1.1.0...HEAD
+[unreleased]: https://github.com/indexzero/flatlock/compare/1.2.0...HEAD
+[1.2.0]: https://github.com/indexzero/flatlock/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/indexzero/flatlock/compare/1.0.0...1.1.0
 [1.0.1]: https://github.com/indexzero/flatlock/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/indexzero/flatlock/releases/tag/1.0.0
