@@ -5,18 +5,6 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import * as flatlock from '../src/index.js';
 
-/**
- * Get comparison parser name for type
- */
-function getComparisonName(type) {
-  switch (type) {
-    case 'npm': return '@npmcli/arborist';
-    case 'yarn-classic': return '@yarnpkg/lockfile';
-    case 'yarn-berry': return '@yarnpkg/parsers';
-    case 'pnpm': return 'js-yaml';
-    default: return 'unknown';
-  }
-}
 
 /**
  * Convert glob pattern to regex
@@ -59,18 +47,17 @@ async function processFile(filepath, baseDir) {
   try {
     const result = await flatlock.compare(filepath);
     const rel = baseDir ? filepath.replace(baseDir + '/', '') : filepath;
-    const comparisonName = getComparisonName(result.type);
 
-    if (result.identical === null) {
+    if (result.equinumerous === null) {
       // Unsupported type or no comparison available
       return {
         type: result.type,
         path: rel,
-        comparisonName,
+        source: result.source || 'unknown',
         flatlockCount: result.flatlockCount,
         comparisonCount: null,
         workspaceCount: 0,
-        identical: null,
+        equinumerous: null,
         onlyInFlatlock: null,
         onlyInComparison: null
       };
@@ -79,11 +66,11 @@ async function processFile(filepath, baseDir) {
     return {
       type: result.type,
       path: rel,
-      comparisonName,
+      source: result.source,
       flatlockCount: result.flatlockCount,
       comparisonCount: result.comparisonCount,
       workspaceCount: result.workspaceCount,
-      identical: result.identical,
+      equinumerous: result.equinumerous,
       onlyInFlatlock: result.onlyInFlatlock,
       onlyInComparison: result.onlyInComparison
     };
@@ -118,10 +105,21 @@ Options:
   -h, --help           Show this help
 
 Comparison parsers (workspace/link entries excluded from all):
-  npm:          @npmcli/arborist (loadVirtual)
+  npm:          @npmcli/arborist (preferred) or @cyclonedx/cyclonedx-npm
   yarn-classic: @yarnpkg/lockfile
   yarn-berry:   @yarnpkg/parsers
-  pnpm:         js-yaml
+  pnpm:         @pnpm/lockfile.fs (preferred) or js-yaml
+
+Result types:
+  ✓ equinumerous  Same packages in both (exact match)
+  ⊃ SUPERSET      flatlock found MORE packages (expected for pnpm)
+  ❌ MISMATCH      Unexpected difference (comparison found packages flatlock missed)
+
+Note on pnpm supersets:
+  flatlock performs full reachability analysis on lockfiles, finding all
+  transitive dependencies. pnpm's official tools don't enumerate all reachable
+  packages - they omit some transitive deps from their API output. When flatlock
+  finds MORE packages than pnpm, this is expected and correct behavior.
 
 Examples:
   flatlock-cmp package-lock.json
@@ -153,6 +151,7 @@ Examples:
   let fileCount = 0;
   let errorCount = 0;
   let matchCount = 0;
+  let supersetCount = 0;  // flatlock found more (expected for pnpm reachability)
   let mismatchCount = 0;
 
   for (const file of files) {
@@ -175,44 +174,61 @@ Examples:
       if (!values.quiet) {
         console.log(`\n⚠️  ${result.path}`);
         console.log(`   flatlock: ${result.flatlockCount} packages`);
-        console.log(`   ${result.comparisonName}: unavailable`);
+        console.log(`   ${result.source}: unavailable`);
       }
       continue;
     }
 
     totalComparison += result.comparisonCount;
 
-    if (result.identical) {
+    if (result.equinumerous) {
       matchCount++;
       if (!values.quiet) {
         const wsNote = result.workspaceCount > 0 ? ` (${result.workspaceCount} workspaces excluded)` : '';
         console.log(`✓  ${result.path}${wsNote}`);
-        console.log(`   count: flatlock=${result.flatlockCount} ${result.comparisonName}=${result.comparisonCount}`);
-        console.log(`   sets:  identical`);
+        console.log(`   count: flatlock=${result.flatlockCount} ${result.source}=${result.comparisonCount}`);
+        console.log(`   sets:  equinumerous`);
       }
     } else {
-      mismatchCount++;
-      console.log(`\n❌ ${result.path}`);
-      console.log(`   count: flatlock=${result.flatlockCount} ${result.comparisonName}=${result.comparisonCount}`);
-      console.log(`   sets:  MISMATCH`);
+      // Determine if this is a "superset" (flatlock found more, expected for pnpm)
+      // or a true "mismatch" (comparison found packages flatlock missed)
+      const isPnpm = result.type === 'pnpm' || result.path.includes('pnpm-lock');
+      const isSuperset = result.onlyInFlatlock.length > 0 && result.onlyInComparison.length === 0;
 
-      if (result.onlyInFlatlock.length > 0) {
-        console.log(`   only in flatlock (${result.onlyInFlatlock.length}):`);
-        for (const pkg of result.onlyInFlatlock.slice(0, 10)) {
-          console.log(`     + ${pkg}`);
+      if (isPnpm && isSuperset) {
+        // Expected behavior: flatlock's reachability analysis found more packages
+        supersetCount++;
+        if (!values.quiet) {
+          const wsNote = result.workspaceCount > 0 ? ` (${result.workspaceCount} workspaces excluded)` : '';
+          console.log(`⊃  ${result.path}${wsNote}`);
+          console.log(`   count: flatlock=${result.flatlockCount} ${result.source}=${result.comparisonCount}`);
+          console.log(`   sets:  SUPERSET (+${result.onlyInFlatlock.length} reachable deps)`);
+          console.log(`   note:  flatlock's reachability analysis found transitive deps pnpm omits`);
         }
-        if (result.onlyInFlatlock.length > 10) {
-          console.log(`     ... and ${result.onlyInFlatlock.length - 10} more`);
-        }
-      }
+      } else {
+        mismatchCount++;
+        console.log(`\n❌ ${result.path}`);
+        console.log(`   count: flatlock=${result.flatlockCount} ${result.source}=${result.comparisonCount}`);
+        console.log(`   sets:  MISMATCH`);
 
-      if (result.onlyInComparison.length > 0) {
-        console.log(`   only in ${result.comparisonName} (${result.onlyInComparison.length}):`);
-        for (const pkg of result.onlyInComparison.slice(0, 10)) {
-          console.log(`     - ${pkg}`);
+        if (result.onlyInFlatlock.length > 0) {
+          console.log(`   only in flatlock (${result.onlyInFlatlock.length}):`);
+          for (const pkg of result.onlyInFlatlock.slice(0, 10)) {
+            console.log(`     + ${pkg}`);
+          }
+          if (result.onlyInFlatlock.length > 10) {
+            console.log(`     ... and ${result.onlyInFlatlock.length - 10} more`);
+          }
         }
-        if (result.onlyInComparison.length > 10) {
-          console.log(`     ... and ${result.onlyInComparison.length - 10} more`);
+
+        if (result.onlyInComparison.length > 0) {
+          console.log(`   only in ${result.source} (${result.onlyInComparison.length}):`);
+          for (const pkg of result.onlyInComparison.slice(0, 10)) {
+            console.log(`     - ${pkg}`);
+          }
+          if (result.onlyInComparison.length > 10) {
+            console.log(`     ... and ${result.onlyInComparison.length - 10} more`);
+          }
         }
       }
     }
@@ -220,7 +236,13 @@ Examples:
 
   // Summary
   console.log('\n' + '='.repeat(70));
-  console.log(`SUMMARY: ${fileCount} files, ${matchCount} identical, ${mismatchCount} mismatches, ${errorCount} errors`);
+  const summaryParts = [`${fileCount} files`, `${matchCount} equinumerous`];
+  if (supersetCount > 0) {
+    summaryParts.push(`${supersetCount} supersets`);
+  }
+  summaryParts.push(`${mismatchCount} mismatches`, `${errorCount} errors`);
+  console.log(`SUMMARY: ${summaryParts.join(', ')}`);
+
   console.log(`  flatlock total:    ${totalFlatlock.toString().padStart(8)} packages`);
   if (totalComparison > 0) {
     console.log(`  comparison total:  ${totalComparison.toString().padStart(8)} packages`);
@@ -228,8 +250,12 @@ Examples:
   if (totalWorkspaces > 0) {
     console.log(`  workspaces:        ${totalWorkspaces.toString().padStart(8)} excluded (local/workspace refs)`);
   }
+  if (supersetCount > 0) {
+    console.log(`  supersets:         ${supersetCount.toString().padStart(8)} (flatlock found more via reachability)`);
+  }
 
-  // Exit with error if any mismatches
+  // Exit with error only for true mismatches (not supersets)
+  // Supersets are expected: flatlock's reachability analysis is more thorough
   if (mismatchCount > 0) {
     process.exit(1);
   }

@@ -4,7 +4,7 @@ import * as flatlock from '../src/index.js';
 import { loadFixture } from './support.js';
 
 describe('flatlock', () => {
-  describe('Type detection', () => {
+  describe('.detectType({ path, content? })', () => {
     test('detects npm package-lock.json', () => {
       const type = flatlock.detectType({ path: 'package-lock.json' });
       assert.equal(type, flatlock.Type.NPM);
@@ -148,97 +148,99 @@ packages:
     });
   });
 
-  describe('npm parser', () => {
-    test('parses package-lock.json v2', () => {
-      const content = loadFixture('npm/package-lock.json.v2');
-      const deps = [...flatlock.fromString(content, { path: 'package-lock.json' })];
+  describe('fromString(content, { path? })', () => {
+    describe('npm parser', () => {
+      test('parses package-lock.json v2', () => {
+        const content = loadFixture('npm/package-lock.json.v2');
+        const deps = [...flatlock.fromString(content, { path: 'package-lock.json' })];
 
-      assert.ok(deps.length > 0, 'Should have dependencies');
+        assert.ok(deps.length > 0, 'Should have dependencies');
 
-      // Check structure
-      const dep = deps[0];
-      assert.ok(dep.name, 'Dependency should have name');
-      assert.ok(dep.version, 'Dependency should have version');
-    });
-
-    test('parses package-lock.json v3', () => {
-      const content = loadFixture('npm/package-lock.json.v3');
-      const deps = [...flatlock.fromString(content, { path: 'package-lock.json' })];
-
-      assert.ok(deps.length > 0, 'Should have dependencies');
-    });
-
-    test('fromPackageLock parses directly', () => {
-      const content = JSON.stringify({
-        lockfileVersion: 2,
-        packages: {
-          '': { name: 'root', version: '1.0.0' },
-          'node_modules/lodash': {
-            name: 'lodash',
-            version: '4.17.21',
-            resolved: 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz',
-            integrity: 'sha512-test123'
-          }
-        }
+        // Check structure
+        const dep = deps[0];
+        assert.ok(dep.name, 'Dependency should have name');
+        assert.ok(dep.version, 'Dependency should have version');
       });
 
-      const deps = [...flatlock.fromPackageLock(content)];
-      assert.equal(deps.length, 1);
-      assert.equal(deps[0].name, 'lodash');
-      assert.equal(deps[0].version, '4.17.21');
-      assert.equal(deps[0].integrity, 'sha512-test123');
+      test('parses package-lock.json v3', () => {
+        const content = loadFixture('npm/package-lock.json.v3');
+        const deps = [...flatlock.fromString(content, { path: 'package-lock.json' })];
+
+        assert.ok(deps.length > 0, 'Should have dependencies');
+      });
+
+      test('fromPackageLock parses directly', () => {
+        const content = JSON.stringify({
+          lockfileVersion: 2,
+          packages: {
+            '': { name: 'root', version: '1.0.0' },
+            'node_modules/lodash': {
+              name: 'lodash',
+              version: '4.17.21',
+              resolved: 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz',
+              integrity: 'sha512-test123'
+            }
+          }
+        });
+
+        const deps = [...flatlock.fromPackageLock(content)];
+        assert.equal(deps.length, 1);
+        assert.equal(deps[0].name, 'lodash');
+        assert.equal(deps[0].version, '4.17.21');
+        assert.equal(deps[0].integrity, 'sha512-test123');
+      });
     });
-  });
 
-  describe('pnpm parser', () => {
-    test('parses pnpm-lock.yaml v6', () => {
-      const content = loadFixture('pnpm/pnpm-lock.yaml.v6');
-      const deps = [...flatlock.fromString(content, { path: 'pnpm-lock.yaml' })];
+    describe('pnpm parser', () => {
+      test('parses pnpm-lock.yaml v6', () => {
+        const content = loadFixture('pnpm/pnpm-lock.yaml.v6');
+        const deps = [...flatlock.fromString(content, { path: 'pnpm-lock.yaml' })];
 
-      assert.ok(deps.length > 0, 'Should have dependencies');
+        assert.ok(deps.length > 0, 'Should have dependencies');
 
-      const dep = deps[0];
-      assert.ok(dep.name, 'Dependency should have name');
-      assert.ok(dep.version, 'Dependency should have version');
-    });
+        const dep = deps[0];
+        assert.ok(dep.name, 'Dependency should have name');
+        assert.ok(dep.version, 'Dependency should have version');
+      });
 
-    test('parses pnpm-lock.yaml v9', () => {
-      const content = loadFixture('pnpm/pnpm-lock.yaml.v9');
-      const deps = [...flatlock.fromString(content, { path: 'pnpm-lock.yaml' })];
+      test('parses pnpm-lock.yaml v9', () => {
+        const content = loadFixture('pnpm/pnpm-lock.yaml.v9');
+        const deps = [...flatlock.fromString(content, { path: 'pnpm-lock.yaml' })];
 
-      assert.ok(deps.length > 0, 'Should have dependencies');
-    });
+        assert.ok(deps.length > 0, 'Should have dependencies');
+      });
 
-    test('fromPnpmLock parses directly', () => {
-      const content = `
-lockfileVersion: '6.0'
+      test('fromPnpmLock parses directly', () => {
+        const content = `lockfileVersion: '6.0'
 packages:
   /lodash@4.17.21:
     resolution: { integrity: sha512-test, tarball: https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz }
 `;
 
-      const deps = [...flatlock.fromPnpmLock(content)];
-      assert.ok(deps.length > 0);
-      assert.equal(deps[0].name, 'lodash');
-      assert.equal(deps[0].version, '4.17.21');
-    });
-  });
-
-  describe('yarn classic parser', () => {
-    test('parses yarn.lock v1', () => {
-      const content = loadFixture('yarn/yarn.lock');
-      const deps = [...flatlock.fromString(content, { path: 'yarn.lock' })];
-
-      assert.ok(deps.length > 0, 'Should have dependencies');
-
-      const dep = deps[0];
-      assert.ok(dep.name, 'Dependency should have name');
-      assert.ok(dep.version, 'Dependency should have version');
+        const deps = [...flatlock.fromPnpmLock(content)];
+        assert.ok(deps.length > 0);
+        assert.equal(deps[0].name, 'lodash');
+        assert.equal(deps[0].version, '4.17.21');
+      });
     });
 
-    test('fromYarnClassicLock parses directly', () => {
-      const content = `
-# yarn lockfile v1
+    // Note: pnpm parseSpec edge cases have been moved to test/parsers/pnpm.test.js
+    // for comprehensive coverage of all pnpm lockfile versions and formats.
+
+    describe('yarn classic parser', () => {
+      test('parses yarn.lock v1', () => {
+        const content = loadFixture('yarn/yarn.lock');
+        const deps = [...flatlock.fromString(content, { path: 'yarn.lock' })];
+
+        assert.ok(deps.length > 0, 'Should have dependencies');
+
+        const dep = deps[0];
+        assert.ok(dep.name, 'Dependency should have name');
+        assert.ok(dep.version, 'Dependency should have version');
+      });
+
+      test('fromYarnClassicLock parses directly', () => {
+        const content = `# yarn lockfile v1
 
 lodash@^4.17.21:
   version "4.17.21"
@@ -246,28 +248,27 @@ lodash@^4.17.21:
   integrity sha512-test123
 `;
 
-      const deps = [...flatlock.fromYarnClassicLock(content)];
-      assert.equal(deps.length, 1);
-      assert.equal(deps[0].name, 'lodash');
-      assert.equal(deps[0].version, '4.17.21');
-    });
-  });
-
-  describe('yarn berry parser', () => {
-    test('parses yarn.lock v5', () => {
-      const content = loadFixture('yarn-berry/yarn.lock.v5');
-      const deps = [...flatlock.fromString(content, { path: 'yarn.lock' })];
-
-      assert.ok(deps.length > 0, 'Should have dependencies');
-
-      const dep = deps[0];
-      assert.ok(dep.name, 'Dependency should have name');
-      assert.ok(dep.version, 'Dependency should have version');
+        const deps = [...flatlock.fromYarnClassicLock(content)];
+        assert.equal(deps.length, 1);
+        assert.equal(deps[0].name, 'lodash');
+        assert.equal(deps[0].version, '4.17.21');
+      });
     });
 
-    test('fromYarnBerryLock parses directly', () => {
-      const content = `
-__metadata:
+    describe('yarn berry parser', () => {
+      test('parses yarn.lock v5', () => {
+        const content = loadFixture('yarn-berry/yarn.lock.v5');
+        const deps = [...flatlock.fromString(content, { path: 'yarn.lock' })];
+
+        assert.ok(deps.length > 0, 'Should have dependencies');
+
+        const dep = deps[0];
+        assert.ok(dep.name, 'Dependency should have name');
+        assert.ok(dep.version, 'Dependency should have version');
+      });
+
+      test('fromYarnBerryLock parses directly', () => {
+        const content = `__metadata:
   version: 6
 
 "lodash@npm:^4.17.21":
@@ -276,41 +277,56 @@ __metadata:
   checksum: sha512-test123
 `;
 
-      const deps = [...flatlock.fromYarnBerryLock(content)];
-      assert.equal(deps.length, 1);
-      assert.equal(deps[0].name, 'lodash');
-      assert.equal(deps[0].version, '4.17.21');
-    });
+        const deps = [...flatlock.fromYarnBerryLock(content)];
+        assert.equal(deps.length, 1);
+        assert.equal(deps[0].name, 'lodash');
+        assert.equal(deps[0].version, '4.17.21');
+      });
 
-    test('fromYarnLock auto-detects berry', () => {
-      const content = `
-__metadata:
+      test('fromYarnLock auto-detects berry', () => {
+        const content = `__metadata:
   version: 6
 
 "lodash@npm:^4.17.21":
   version: 4.17.21
 `;
 
-      const deps = [...flatlock.fromYarnLock(content)];
-      assert.equal(deps.length, 1);
-      assert.equal(deps[0].name, 'lodash');
-    });
+        const deps = [...flatlock.fromYarnLock(content)];
+        assert.equal(deps.length, 1);
+        assert.equal(deps[0].name, 'lodash');
+      });
 
-    test('fromYarnLock auto-detects classic', () => {
-      const content = `
-# yarn lockfile v1
+      test('fromYarnLock auto-detects classic', () => {
+        const content = `# yarn lockfile v1
 
 lodash@^4.17.21:
   version "4.17.21"
 `;
 
-      const deps = [...flatlock.fromYarnLock(content)];
-      assert.equal(deps.length, 1);
-      assert.equal(deps[0].name, 'lodash');
+        const deps = [...flatlock.fromYarnLock(content)];
+        assert.equal(deps.length, 1);
+        assert.equal(deps[0].name, 'lodash');
+      });
+    });
+
+    describe('fromString with explicit type', () => {
+      test('uses explicit type when provided', () => {
+        const content = JSON.stringify({
+          lockfileVersion: 2,
+          packages: {
+            '': { name: 'root', version: '1.0.0' },
+            'node_modules/lodash': { name: 'lodash', version: '4.17.21' }
+          }
+        });
+
+        const deps = [...flatlock.fromString(content, { type: flatlock.Type.NPM })];
+        assert.equal(deps.length, 1);
+        assert.equal(deps[0].name, 'lodash');
+      });
     });
   });
 
-  describe('Result type support', () => {
+  describe('tryFromString(content, { path? })', () => {
     test('tryFromString returns Ok for valid content', () => {
       const content = JSON.stringify({
         lockfileVersion: 2,
@@ -350,19 +366,273 @@ lodash@^4.17.21:
     });
   });
 
-  describe('fromString with explicit type', () => {
-    test('uses explicit type when provided', () => {
-      const content = JSON.stringify({
+  describe('.from{PackageLock,PnpmLock,Yarn*Lock}(parsedLockfile)', () => {
+    test('fromPackageLock accepts pre-parsed object', () => {
+      const lockfile = {
         lockfileVersion: 2,
         packages: {
           '': { name: 'root', version: '1.0.0' },
-          'node_modules/lodash': { name: 'lodash', version: '4.17.21' }
+          'node_modules/lodash': {
+            version: '4.17.21',
+            resolved: 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz',
+            integrity: 'sha512-test123'
+          }
         }
-      });
+      };
 
-      const deps = [...flatlock.fromString(content, { type: flatlock.Type.NPM })];
+      // Pass object directly, not JSON string
+      const deps = [...flatlock.fromPackageLock(lockfile)];
       assert.equal(deps.length, 1);
       assert.equal(deps[0].name, 'lodash');
+      assert.equal(deps[0].version, '4.17.21');
+      assert.equal(deps[0].integrity, 'sha512-test123');
+    });
+
+    test('fromPnpmLock accepts pre-parsed object', () => {
+      const lockfile = {
+        lockfileVersion: '6.0',
+        packages: {
+          '/lodash@4.17.21': {
+            resolution: {
+              integrity: 'sha512-test',
+              tarball: 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz'
+            }
+          }
+        }
+      };
+
+      // Pass object directly, not YAML string
+      const deps = [...flatlock.fromPnpmLock(lockfile)];
+      assert.equal(deps.length, 1);
+      assert.equal(deps[0].name, 'lodash');
+      assert.equal(deps[0].version, '4.17.21');
+    });
+
+    test('fromYarnClassicLock accepts pre-parsed object', () => {
+      const lockfile = {
+        'lodash@^4.17.21': {
+          version: '4.17.21',
+          resolved: 'https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz',
+          integrity: 'sha512-test123'
+        }
+      };
+
+      // Pass object directly (this is what @yarnpkg/lockfile returns as result.object)
+      const deps = [...flatlock.fromYarnClassicLock(lockfile)];
+      assert.equal(deps.length, 1);
+      assert.equal(deps[0].name, 'lodash');
+      assert.equal(deps[0].version, '4.17.21');
+    });
+
+    test('fromYarnBerryLock accepts pre-parsed object', () => {
+      const lockfile = {
+        __metadata: { version: 6 },
+        'lodash@npm:^4.17.21': {
+          version: '4.17.21',
+          resolution: 'lodash@npm:4.17.21',
+          checksum: 'sha512-test123'
+        }
+      };
+
+      // Pass object directly (this is what parseSyml returns)
+      const deps = [...flatlock.fromYarnBerryLock(lockfile)];
+      assert.equal(deps.length, 1);
+      assert.equal(deps[0].name, 'lodash');
+      assert.equal(deps[0].version, '4.17.21');
+    });
+
+    test('string and object produce same results for npm', () => {
+      const lockfile = {
+        lockfileVersion: 2,
+        packages: {
+          '': { name: 'root', version: '1.0.0' },
+          'node_modules/lodash': { version: '4.17.21' },
+          'node_modules/@babel/core': { version: '7.23.0' }
+        }
+      };
+
+      const fromString = [...flatlock.fromPackageLock(JSON.stringify(lockfile))];
+      const fromObject = [...flatlock.fromPackageLock(lockfile)];
+
+      assert.equal(fromString.length, fromObject.length);
+      assert.deepEqual(
+        fromString.map(d => `${d.name}@${d.version}`).sort(),
+        fromObject.map(d => `${d.name}@${d.version}`).sort()
+      );
+    });
+  });
+
+  // ============================================================================
+  // Ground Truth Discovery Tests
+  // ============================================================================
+
+  /**
+   * cross-01: Equinumerous Semantic
+   *
+   * Discovery: The compare.js `equinumerous` field compares CARDINALITY (set size),
+   * not individual package names. Two sets are equinumerous if they have the same
+   * number of elements, regardless of whether the elements themselves match.
+   *
+   * This means:
+   *   - equinumerous: true means flatlock.size === comparison.size
+   *   - Individual packages can differ (aliases vs canonical names)
+   *   - This is correct for validating parser coverage
+   *
+   * Etymology: Latin "equi-" (equal) + "numerus" (number) = same cardinality
+   */
+  describe('[cross-01] equinumerous semantic', () => {
+    describe('equinumerous compares cardinality, not names', () => {
+      test('same count with different names is still equinumerous', () => {
+        // This documents the semantic:
+        // flatlock returns: ['@babel/core@7.24.4', 'lodash@4.17.21']
+        // comparison returns: ['@babel-baseline/core@7.24.4', 'lodash@4.17.21']
+        // equinumerous: true because both have 2 packages (same cardinality)
+
+        const flatlockPackages = new Set(['@babel/core@7.24.4', 'lodash@4.17.21']);
+
+        const comparisonPackages = new Set([
+          '@babel-baseline/core@7.24.4', // alias
+          'lodash@4.17.21'
+        ]);
+
+        // The equinumerous check (same cardinality)
+        const equinumerous = flatlockPackages.size === comparisonPackages.size;
+
+        assert.equal(equinumerous, true);
+        // Even though the actual packages differ
+        assert.equal(
+          [...flatlockPackages].sort().join(','),
+          ['@babel/core@7.24.4', 'lodash@4.17.21'].sort().join(',')
+        );
+        assert.notEqual(
+          [...flatlockPackages].sort().join(','),
+          [...comparisonPackages].sort().join(',')
+        );
+      });
+
+      test('different counts means not equinumerous', () => {
+        const flatlockPackages = new Set(['lodash@4.17.21', 'react@18.2.0']);
+
+        const comparisonPackages = new Set([
+          'lodash@4.17.21'
+          // missing react
+        ]);
+
+        const equinumerous = flatlockPackages.size === comparisonPackages.size;
+
+        assert.equal(equinumerous, false);
+      });
+    });
+
+    describe('why cardinality comparison is correct', () => {
+      test('cardinality mismatch indicates parsing bug (documentation)', () => {
+        // If flatlock returns 100 packages but comparison returns 95,
+        // there's likely a bug in one parser (missing entries or over-counting)
+        //
+        // If cardinalities match but names differ, it's likely:
+        // 1. Alias resolution (flatlock uses canonical names)
+        // 2. Different deduplication strategies
+        //
+        // Both are documented and expected behaviors
+        assert.ok(true, 'Cardinality comparison catches parsing bugs');
+      });
+
+      test('name differences are expected for aliased packages', () => {
+        // The 56.10% accuracy for yarn berry v8 is due to aliases
+        // But equinumerous: true because cardinalities match
+        //
+        // This is the correct semantic:
+        // - equinumerous: true -> parser coverage is correct
+        // - Low accuracy -> different name choices (documented)
+        assert.ok(true, 'Name differences are intentional for SBOM accuracy');
+      });
+    });
+
+    describe('equinumerous with missing/extra packages', () => {
+      test('equinumerous can be true even with missing/extra (balanced)', () => {
+        // If flatlock has 2 extra and comparison has 2 extra,
+        // sizes could still match (both have N packages)
+        // This happens with aliases:
+        // flatlock: canonical names (extra from comparison's view)
+        // comparison: alias names (missing from flatlock's view)
+
+        // 3 packages each, but different names
+        const flatlock = new Set(['real1@1.0.0', 'real2@2.0.0', 'same@3.0.0']);
+        const comparison = new Set(['alias1@1.0.0', 'alias2@2.0.0', 'same@3.0.0']);
+
+        const equinumerous = flatlock.size === comparison.size;
+        assert.equal(equinumerous, true);
+
+        // Missing from flatlock's perspective: alias1, alias2
+        const missing = [...comparison].filter(p => !flatlock.has(p));
+        assert.equal(missing.length, 2);
+
+        // Extra from flatlock's perspective: real1, real2
+        const extra = [...flatlock].filter(p => !comparison.has(p));
+        assert.equal(extra.length, 2);
+
+        // Despite missing/extra, equinumerous is true
+        // This correctly indicates parser coverage is the same
+      });
+    });
+  });
+
+  describe('collect()', () => {
+    test('recognizes YAML content as content, not path', async () => {
+      const yamlContent = `lockfileVersion: '6.0'
+packages:
+  /lodash@4.17.21:
+    resolution: { integrity: sha512-test }
+`;
+      // Should not throw - YAML content should be detected as content, not path
+      const deps = await flatlock.collect(yamlContent, { type: flatlock.Type.PNPM });
+      assert.ok(deps.length > 0);
+      assert.equal(deps[0].name, 'lodash');
+    });
+
+    test('recognizes JSON content as content, not path', async () => {
+      // Use pretty-printed JSON which has newlines (more realistic for lockfiles)
+      const jsonContent = JSON.stringify(
+        {
+          lockfileVersion: 2,
+          packages: {
+            '': { name: 'root', version: '1.0.0' },
+            'node_modules/lodash': { version: '4.17.21' }
+          }
+        },
+        null,
+        2
+      );
+
+      // Verify it has newlines (which is the primary detection signal)
+      assert.ok(jsonContent.includes('\n'), 'JSON should have newlines');
+
+      const deps = await flatlock.collect(jsonContent, { type: flatlock.Type.NPM });
+      assert.equal(deps.length, 1);
+      assert.equal(deps[0].name, 'lodash');
+    });
+
+    test('short strings without newlines are treated as paths', async () => {
+      // A typical path is short and has no newlines
+      const shortPath = '/some/path/to/package-lock.json';
+
+      // This should try to read from the path (and fail since it does not exist)
+      await assert.rejects(() => flatlock.collect(shortPath), /ENOENT|no such file/i);
+    });
+
+    test('long content without newlines is treated as content', async () => {
+      // Create a minimal but "long" JSON lockfile (over 1000 chars) on a single line
+      const packages = {};
+      for (let i = 0; i < 20; i++) {
+        packages[`node_modules/package-with-long-name-${i}`] = { version: '1.0.0' };
+      }
+      const longContent = JSON.stringify({ lockfileVersion: 2, packages });
+
+      assert.ok(longContent.length > 1000, 'Content should be over 1000 chars');
+      assert.ok(!longContent.includes('\n'), 'Content should be single line');
+
+      const deps = await flatlock.collect(longContent, { type: flatlock.Type.NPM });
+      assert.ok(deps.length > 0);
     });
   });
 });

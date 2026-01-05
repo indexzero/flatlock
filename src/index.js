@@ -7,6 +7,7 @@ import {
   fromYarnClassicLock
 } from './parsers/index.js';
 import { Err, Ok } from './result.js';
+import { FlatlockSet } from './set.js';
 
 /** @typedef {import('./detect.js').LockfileType} LockfileType */
 /** @typedef {import('./parsers/npm.js').Dependency} Dependency */
@@ -25,6 +26,9 @@ export { Ok, Err };
 
 // Re-export individual parsers
 export { fromPackageLock, fromPnpmLock, fromYarnClassicLock, fromYarnBerryLock };
+
+// Re-export FlatlockSet class
+export { FlatlockSet };
 
 /**
  * Parse lockfile from path (auto-detect type)
@@ -130,8 +134,8 @@ export function* fromYarnLock(content, options = {}) {
 export async function collect(pathOrContent, options = {}) {
   const deps = [];
 
-  // Check if it's a path or content
-  const isPath = !pathOrContent.includes('\n') && !pathOrContent.startsWith('{');
+  // Better heuristic: paths don't contain newlines and are reasonably short
+  const isPath = !pathOrContent.includes('\n') && pathOrContent.length < 1000;
 
   if (isPath) {
     for await (const dep of fromPath(pathOrContent, options)) {
@@ -145,6 +149,9 @@ export async function collect(pathOrContent, options = {}) {
 
   return deps;
 }
+
+// Re-export compare API
+export { compare, compareAll, getAvailableParsers } from './compare.js';
 
 // Re-export lockfile key parsing utilities
 export {

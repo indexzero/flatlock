@@ -38,7 +38,7 @@ describe('compare module', () => {
 
       // Verify structure
       assert.ok('type' in result, 'should have type');
-      assert.ok('identical' in result, 'should have identical');
+      assert.ok('equinumerous' in result, 'should have equinumerous');
       assert.ok('flatlockCount' in result, 'should have flatlockCount');
       assert.ok('comparisonCount' in result, 'should have comparisonCount');
       assert.ok('workspaceCount' in result, 'should have workspaceCount');
@@ -47,7 +47,7 @@ describe('compare module', () => {
 
       // Verify types
       assert.equal(result.type, Type.NPM);
-      assert.equal(typeof result.identical, 'boolean');
+      assert.equal(typeof result.equinumerous, 'boolean');
       assert.equal(typeof result.flatlockCount, 'number');
       assert.equal(typeof result.comparisonCount, 'number');
       assert.equal(typeof result.workspaceCount, 'number');
@@ -68,9 +68,9 @@ describe('compare module', () => {
 
       // Log diagnostic info
       console.log(
-        `  npm v2: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`
+        `  npm v2: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, equinumerous=${result.equinumerous}`
       );
-      if (!result.identical) {
+      if (!result.equinumerous) {
         console.log(`    onlyInFlatlock: ${result.onlyInFlatlock.slice(0, 3).join(', ')}`);
         console.log(`    onlyInComparison: ${result.onlyInComparison.slice(0, 3).join(', ')}`);
       }
@@ -88,7 +88,7 @@ describe('compare module', () => {
       assert.ok(result.comparisonCount > 0, 'should have comparison packages');
 
       console.log(
-        `  npm v3: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`
+        `  npm v3: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, equinumerous=${result.equinumerous}`
       );
     });
 
@@ -102,7 +102,7 @@ describe('compare module', () => {
       assert.ok(result.comparisonCount > 0, 'should have comparison packages');
 
       console.log(
-        `  pnpm v6: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`
+        `  pnpm v6: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, equinumerous=${result.equinumerous}`
       );
     });
 
@@ -116,7 +116,7 @@ describe('compare module', () => {
       assert.ok(result.comparisonCount > 0, 'should have comparison packages');
 
       console.log(
-        `  pnpm v9: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`
+        `  pnpm v9: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, equinumerous=${result.equinumerous}`
       );
     });
 
@@ -130,7 +130,7 @@ describe('compare module', () => {
       assert.ok(result.comparisonCount > 0, 'should have comparison packages');
 
       console.log(
-        `  yarn classic: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`
+        `  yarn classic: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, equinumerous=${result.equinumerous}`
       );
     });
 
@@ -144,7 +144,7 @@ describe('compare module', () => {
       assert.ok(result.comparisonCount > 0, 'should have comparison packages');
 
       console.log(
-        `  yarn berry v5: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`
+        `  yarn berry v5: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, equinumerous=${result.equinumerous}`
       );
     });
 
@@ -158,11 +158,11 @@ describe('compare module', () => {
       assert.ok(result.comparisonCount > 0, 'should have comparison packages');
 
       console.log(
-        `  yarn berry v8: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, identical=${result.identical}`
+        `  yarn berry v8: flatlock=${result.flatlockCount}, comparison=${result.comparisonCount}, equinumerous=${result.equinumerous}`
       );
     });
 
-    test('returns null identical for unknown type', async () => {
+    test('returns null equinumerous for unknown type', async () => {
       const tmpDir = await mkdtemp(join(tmpdir(), 'flatlock-test-'));
       const tmpFile = join(tmpDir, 'unknown.txt');
       try {

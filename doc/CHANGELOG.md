@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `FlatlockSet` class for Set-like operations on lockfile dependencies
+  - Factory methods: `fromPath()`, `fromString()`
+  - Set operations: `union()`, `intersection()`, `difference()`
+  - Predicates: `isSubsetOf()`, `isSupersetOf()`, `isDisjointFrom()`
+  - Traversal: `dependenciesOf()` for workspace-specific SBOM generation
+- Comprehensive test suite for FlatlockSet (48 test cases)
+- Export `parseYarnClassic` function for standardized yarn classic lockfile parsing
+
+### Changed
+- Parsers now accept pre-parsed lockfile objects for better performance (eliminates redundant parsing)
+- Consolidate `Dependency` type definition into `src/parsers/types.js`
+- Standardize `@yarnpkg/lockfile` parse function access across all modules via `parseYarnClassic`
+
+### Fixed
+- Fix `collect()` path detection for YAML lockfile content (was incorrectly treating YAML as a path)
+
 ## [1.1.0] - 2025-12-16
 
 ### Added

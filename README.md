@@ -11,7 +11,7 @@ Most lockfile parsers (like `@npmcli/arborist` or `snyk-nodejs-lockfile-parser`)
 **flatlock** takes a different approach: it extracts a flat stream of packages from any lockfile format. No trees, no graphs, no edges - just packages.
 
 ```javascript
-import * as `flatlock`from 'flatlock';
+import * as flatlock from 'flatlock';
 
 // Stream packages from any lockfile
 for await (const pkg of flatlock.fromPath('./package-lock.json')) {
@@ -88,6 +88,59 @@ Each yielded package has:
   resolved?: string;  // Download URL
 }
 ```
+
+## FlatlockSet
+
+For more advanced use cases, `FlatlockSet` provides Set-like operations on lockfile dependencies:
+
+```javascript
+import { FlatlockSet } from 'flatlock';
+
+// Create from lockfile
+const set = await FlatlockSet.fromPath('./package-lock.json');
+console.log(set.size); // 1234
+console.log(set.has('lodash@4.17.21')); // true
+
+// Set operations (immutable - return new sets)
+const other = await FlatlockSet.fromPath('./other-lock.json');
+const common = set.intersection(other);  // packages in both
+const added = other.difference(set);     // packages only in other
+const all = set.union(other);            // packages in either
+
+// Predicates
+set.isSubsetOf(other);    // true if all packages in set are in other
+set.isSupersetOf(other);  // true if set contains all packages in other
+set.isDisjointFrom(other); // true if no packages in common
+
+// Iterate like a Set
+for (const dep of set) {
+  console.log(dep.name, dep.version);
+}
+```
+
+### Workspace-Specific SBOMs
+
+For monorepos, use `dependenciesOf()` to get only the dependencies of a specific workspace:
+
+```javascript
+import { readFile } from 'node:fs/promises';
+import { FlatlockSet } from 'flatlock';
+
+const lockfile = await FlatlockSet.fromPath('./package-lock.json');
+const pkg = JSON.parse(await readFile('./packages/api/package.json', 'utf8'));
+
+// Get only dependencies reachable from this workspace
+const subset = lockfile.dependenciesOf(pkg, {
+  workspacePath: 'packages/api',  // for correct resolution in monorepos
+  dev: false,                      // exclude devDependencies
+  optional: true,                  // include optionalDependencies
+  peer: false                      // exclude peerDependencies
+});
+
+console.log(`${pkg.name} has ${subset.size} production dependencies`);
+```
+
+**Note:** Sets created via `union()`, `intersection()`, or `difference()` cannot use `dependenciesOf()` because they lack the raw lockfile data needed for traversal. Check `set.canTraverse` before calling.
 
 ## License
 

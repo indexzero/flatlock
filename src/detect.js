@@ -1,6 +1,6 @@
-import yarnLockfile from '@yarnpkg/lockfile';
 import { parseSyml } from '@yarnpkg/parsers';
 import yaml from 'js-yaml';
+import { parseYarnClassic } from './parsers/yarn-classic.js';
 
 /**
  * @typedef {'npm' | 'pnpm' | 'yarn-classic' | 'yarn-berry'} LockfileType
@@ -57,10 +57,9 @@ function tryParseYarnBerry(content) {
  */
 function tryParseYarnClassic(content) {
   try {
-    const parse = yarnLockfile.default?.parse || yarnLockfile.parse;
-    if (!parse) return false;
+    if (!parseYarnClassic) return false;
 
-    const result = parse(content);
+    const result = parseYarnClassic(content);
     // Must parse successfully and NOT have __metadata (that's berry)
     // Must have at least one package entry (not empty object)
     const isValidResult = result.type === 'success' || result.type === 'merge';

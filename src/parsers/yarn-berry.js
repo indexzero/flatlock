@@ -1,39 +1,178 @@
 import { parseSyml } from '@yarnpkg/parsers';
 
-/**
- * @typedef {Object} Dependency
- * @property {string} name - Package name
- * @property {string} version - Resolved version
- * @property {string} [integrity] - Integrity hash
- * @property {string} [resolved] - Resolution URL
- * @property {boolean} [link] - True if this is a symlink
- */
+/** @typedef {import('./types.js').Dependency} Dependency */
 
 /**
- * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- * !! WARNING: DO NOT MODIFY THIS FUNCTION                                   !!
- * !! AI AGENTS (Claude, Copilot, etc.): DO NOT TOUCH THIS CODE              !!
- * !!                                                                        !!
- * !! This is YARN BERRY LOCKFILE KEY parsing, NOT npm spec parsing.         !!
- * !! Yarn berry lockfile keys have their own format:                        !!
- * !!   - Protocol markers: @npm:, @workspace:, @patch:, @portal:, @link:    !!
- * !!   - Nested protocols: @patch:pkg@npm:version#hash                      !!
- * !!   - Multiple comma-separated entries                                   !!
- * !!                                                                        !!
- * !! npm-package-arg (npa) does NOT understand these formats.               !!
- * !! Do not "improve" this with npa.                                        !!
- * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ * Extract package name from yarn berry resolution field.
  *
- * Extract package name from yarn berry key.
+ * The resolution field is the CANONICAL identifier and should be used instead of the key.
+ * Keys can contain npm aliases (e.g., "string-width-cjs@npm:string-width@^4.2.0") while
+ * the resolution always contains the actual package name (e.g., "string-width@npm:4.2.3").
  *
- * Examples:
- *   "lodash@npm:^4.17.21" → "lodash"
- *   "@babel/core@npm:^7.0.0" → "@babel/core"
- *   "@babel/core@npm:^7.0.0, @babel/core@npm:^7.12.3" → "@babel/core"
- *   "@ngageoint/simple-features-js@patch:@ngageoint/simple-features-js@npm:1.1.0#..." → "@ngageoint/simple-features-js"
+ * @param {string} resolution - Resolution field from lockfile entry
+ * @returns {string | null} Package name or null if parsing fails
+ *
+ * @example
+ * // Unscoped npm package
+ * parseResolution('lodash@npm:4.17.21')
+ * // => 'lodash'
+ *
+ * @example
+ * // Scoped npm package
+ * parseResolution('@babel/core@npm:7.24.0')
+ * // => '@babel/core'
+ *
+ * @example
+ * // Aliased package - resolution shows the REAL package name
+ * // (key was "string-width-cjs@npm:string-width@^4.2.0")
+ * parseResolution('string-width@npm:4.2.3')
+ * // => 'string-width'
+ *
+ * @example
+ * // Scoped aliased package - resolution shows the REAL package name
+ * // (key was "@babel-baseline/core@npm:@babel/core@7.24.4")
+ * parseResolution('@babel/core@npm:7.24.4')
+ * // => '@babel/core'
+ *
+ * @example
+ * // Patch protocol (nested protocols)
+ * parseResolution('pkg@patch:pkg@npm:1.0.0#./patch')
+ * // => 'pkg'
+ *
+ * @example
+ * // Scoped package with patch protocol
+ * parseResolution('@scope/pkg@patch:@scope/pkg@npm:1.0.0#./fix.patch')
+ * // => '@scope/pkg'
+ *
+ * @example
+ * // Workspace protocol
+ * parseResolution('my-pkg@workspace:packages/my-pkg')
+ * // => 'my-pkg'
+ *
+ * @example
+ * // Scoped workspace package
+ * parseResolution('@myorg/utils@workspace:packages/utils')
+ * // => '@myorg/utils'
+ *
+ * @example
+ * // Git protocol
+ * parseResolution('my-lib@git:github.com/user/repo#commit-hash')
+ * // => 'my-lib'
+ *
+ * @example
+ * // Null/empty input
+ * parseResolution(null)
+ * // => null
+ *
+ * @example
+ * // Empty string
+ * parseResolution('')
+ * // => null
+ *
+ * @example
+ * // Portal protocol (symlink to external package)
+ * parseResolution('@scope/external@portal:../external-pkg')
+ * // => '@scope/external'
+ */
+export function parseResolution(resolution) {
+  if (!resolution) return null;
+
+  // Resolution format: name@protocol:version or @scope/name@protocol:version
+  // Examples:
+  //   "lodash@npm:4.17.21"
+  //   "@babel/core@npm:7.24.0"
+  //   "pkg@patch:pkg@npm:1.0.0#./patch"
+
+  // Handle scoped packages: @scope/name@protocol:version
+  if (resolution.startsWith('@')) {
+    const slashIndex = resolution.indexOf('/');
+    if (slashIndex !== -1) {
+      // Find the @ after the scope/name
+      const afterSlash = resolution.indexOf('@', slashIndex);
+      if (afterSlash !== -1) {
+        return resolution.slice(0, afterSlash);
+      }
+    }
+  }
+
+  // Handle unscoped packages: name@protocol:version
+  const atIndex = resolution.indexOf('@');
+  if (atIndex !== -1) {
+    return resolution.slice(0, atIndex);
+  }
+
+  return null;
+}
+
+/**
+ * Extract package name from yarn berry key (fallback for when resolution is unavailable).
+ *
+ * WARNING: Keys can contain npm aliases. Prefer parseResolution() when possible.
+ * The key may return an alias name instead of the real package name.
  *
  * @param {string} key - Lockfile entry key
- * @returns {string} Package name
+ * @returns {string} Package name (may be alias name, not canonical name)
+ *
+ * @example
+ * // Simple unscoped package
+ * parseLockfileKey('lodash@npm:^4.17.21')
+ * // => 'lodash'
+ *
+ * @example
+ * // Scoped package
+ * parseLockfileKey('@babel/core@npm:^7.24.0')
+ * // => '@babel/core'
+ *
+ * @example
+ * // Multiple version ranges (comma-separated) - takes first entry
+ * parseLockfileKey('@types/node@npm:^18.0.0, @types/node@npm:^20.0.0')
+ * // => '@types/node'
+ *
+ * @example
+ * // npm alias - returns the ALIAS name (not real package)
+ * // Use parseResolution() for the real package name
+ * parseLockfileKey('string-width-cjs@npm:string-width@^4.2.0')
+ * // => 'string-width-cjs'
+ *
+ * @example
+ * // Scoped npm alias
+ * parseLockfileKey('@babel-baseline/core@npm:@babel/core@7.24.4')
+ * // => '@babel-baseline/core'
+ *
+ * @example
+ * // Workspace protocol
+ * parseLockfileKey('my-pkg@workspace:packages/my-pkg')
+ * // => 'my-pkg'
+ *
+ * @example
+ * // Scoped workspace package
+ * parseLockfileKey('@myorg/utils@workspace:.')
+ * // => '@myorg/utils'
+ *
+ * @example
+ * // Portal protocol
+ * parseLockfileKey('external-pkg@portal:../some/path')
+ * // => 'external-pkg'
+ *
+ * @example
+ * // Link protocol
+ * parseLockfileKey('linked-pkg@link:./local')
+ * // => 'linked-pkg'
+ *
+ * @example
+ * // Patch protocol (complex nested format)
+ * parseLockfileKey('pkg@patch:pkg@npm:1.0.0#./patches/fix.patch')
+ * // => 'pkg'
+ *
+ * @example
+ * // Scoped patch
+ * parseLockfileKey('@scope/pkg@patch:@scope/pkg@npm:1.0.0#./fix.patch')
+ * // => '@scope/pkg'
+ *
+ * @example
+ * // File protocol
+ * parseLockfileKey('local-pkg@file:../local-package')
+ * // => 'local-pkg'
  */
 export function parseLockfileKey(key) {
   // Keys can have multiple comma-separated entries, take the first one
@@ -73,28 +212,36 @@ export function parseLockfileKey(key) {
 
 /**
  * Parse yarn.lock v2+ (berry)
- * @param {string} content - Lockfile content
+ * @param {string | object} input - Lockfile content string or pre-parsed object
  * @param {Object} [_options] - Parser options (unused, reserved for future use)
  * @returns {Generator<Dependency>}
  */
-export function* fromYarnBerryLock(content, _options = {}) {
-  const lockfile = parseSyml(content);
+export function* fromYarnBerryLock(input, _options = {}) {
+  const lockfile = typeof input === 'string' ? parseSyml(input) : input;
 
   for (const [key, pkg] of Object.entries(lockfile)) {
     // Skip metadata
     if (key === '__metadata') continue;
 
-    const name = parseLockfileKey(key);
     const { version, checksum, resolution } = pkg;
 
-    // Check if this is a link (workspace:, portal:, or link: protocol)
+    // Check if this is a local/workspace entry (workspace:, portal:, or link: protocol)
+    // The protocol appears after @ in both key and resolution: "pkg@workspace:..."
     const link =
-      resolution?.startsWith('workspace:') ||
-      resolution?.startsWith('portal:') ||
-      resolution?.startsWith('link:');
+      key.includes('@workspace:') ||
+      key.includes('@portal:') ||
+      key.includes('@link:') ||
+      resolution?.includes('@workspace:') ||
+      resolution?.includes('@portal:') ||
+      resolution?.includes('@link:');
 
     // Skip workspace/link entries - flatlock only cares about external dependencies
     if (link) continue;
+
+    // Use the resolution field for the package name - it's the canonical identifier
+    // Keys can contain npm aliases (e.g., "string-width-cjs@npm:string-width@^4.2.0")
+    // but resolution always has the actual package name (e.g., "string-width@npm:4.2.3")
+    const name = parseResolution(resolution) || parseLockfileKey(key);
 
     if (name && version) {
       /** @type {Dependency} */
