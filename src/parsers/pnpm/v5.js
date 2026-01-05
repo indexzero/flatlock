@@ -154,7 +154,7 @@ export function parseSpecV5(spec) {
 
     return {
       name: `${scope}/${pkgName}`,
-      version: version,
+      version: version
     };
   }
 

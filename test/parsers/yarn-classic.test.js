@@ -10,16 +10,16 @@
  */
 
 import assert from 'node:assert/strict';
-import { describe, test } from 'node:test';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { describe, test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 // Public API
 import {
+  fromYarnClassicLock,
   parseLockfileKey,
-  parseYarnClassic,
-  fromYarnClassicLock
+  parseYarnClassic
 } from '../../src/parsers/yarn-classic.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -194,10 +194,7 @@ lodash@^4.17.21:
       const content = loadFixture('yarn.lock');
       const result = parseYarnClassic(content);
 
-      assert.ok(
-        result.type === 'success' || result.type === 'merge',
-        'Should parse successfully'
-      );
+      assert.ok(result.type === 'success' || result.type === 'merge', 'Should parse successfully');
     });
   });
 

@@ -10,18 +10,17 @@
  */
 
 import assert from 'node:assert/strict';
-import { describe, test } from 'node:test';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-
+import { describe, test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { parseSyml } from '@yarnpkg/parsers';
 // Public API
 import {
+  fromYarnBerryLock,
   parseLockfileKey,
-  parseResolution,
-  fromYarnBerryLock
+  parseResolution
 } from '../../src/parsers/yarn-berry.js';
-import { parseSyml } from '@yarnpkg/parsers';
 
 // Alias for test readability
 const parseYarnBerryResolution = parseResolution;
@@ -1420,10 +1419,8 @@ describe('yarn berry parsers', () => {
       assert.equal(deps.length, 2);
 
       // Workspaces are not in output
-      const hasWorkspace = deps.some(d =>
-        d.name === 'my-app' ||
-        d.name === '@myorg/shared' ||
-        d.name === '@myorg/utils'
+      const hasWorkspace = deps.some(
+        d => d.name === 'my-app' || d.name === '@myorg/shared' || d.name === '@myorg/utils'
       );
       assert.equal(hasWorkspace, false);
     });

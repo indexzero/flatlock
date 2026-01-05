@@ -101,7 +101,7 @@ export function parseSpecShrinkwrap(spec) {
   }
 
   // Remove leading slash if present
-  let cleaned = spec.startsWith('/') ? spec.slice(1) : spec;
+  const cleaned = spec.startsWith('/') ? spec.slice(1) : spec;
 
   // Handle empty string after removing slash
   if (!cleaned) {
@@ -144,7 +144,7 @@ export function parseSpecShrinkwrap(spec) {
 
     return {
       name: `${scope}/${pkgName}`,
-      version: version,
+      version: version
     };
   }
 

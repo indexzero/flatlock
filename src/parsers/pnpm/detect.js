@@ -69,7 +69,7 @@ export function detectVersion(lockfile) {
     return {
       era: 'shrinkwrap',
       version: version,
-      isShrinkwrap: true,
+      isShrinkwrap: true
     };
   }
 
@@ -86,7 +86,7 @@ export function detectVersion(lockfile) {
     return {
       era: 'v5',
       version: version,
-      isShrinkwrap: false,
+      isShrinkwrap: false
     };
   }
 
@@ -97,7 +97,7 @@ export function detectVersion(lockfile) {
       return {
         era: 'v5-inline',
         version: version,
-        isShrinkwrap: false,
+        isShrinkwrap: false
       };
     }
 
@@ -106,7 +106,7 @@ export function detectVersion(lockfile) {
       return {
         era: 'v9',
         version: version,
-        isShrinkwrap: false,
+        isShrinkwrap: false
       };
     }
 
@@ -115,7 +115,7 @@ export function detectVersion(lockfile) {
       return {
         era: 'v6',
         version: version,
-        isShrinkwrap: false,
+        isShrinkwrap: false
       };
     }
 

@@ -195,8 +195,10 @@ async function getPackagesFromCycloneDX(content, filepath, options = {}) {
 
     const args = [
       cliPath,
-      '--output-format', 'JSON',
-      '--output-file', '-',
+      '--output-format',
+      'JSON',
+      '--output-file',
+      '-',
       '--package-lock-only' // Don't require node_modules
     ];
 
@@ -247,7 +249,9 @@ async function getPackagesFromNpm(content, filepath, options = {}) {
   const cyclonedxResult = await getPackagesFromCycloneDX(content, filepath, options);
   if (cyclonedxResult) return cyclonedxResult;
 
-  throw new Error('No npm comparison parser available. Install @npmcli/arborist or @cyclonedx/cyclonedx-npm');
+  throw new Error(
+    'No npm comparison parser available. Install @npmcli/arborist or @cyclonedx/cyclonedx-npm'
+  );
 }
 
 /**
@@ -312,7 +316,10 @@ async function getPackagesFromYarnBerryCore(content, options = {}) {
   try {
     await writeFile(lockPath, content);
     // Minimal package.json - only needed for Configuration.find
-    await writeFile(pkgPath, JSON.stringify({ name: 'flatlock-temp', version: '0.0.0', private: true }));
+    await writeFile(
+      pkgPath,
+      JSON.stringify({ name: 'flatlock-temp', version: '0.0.0', private: true })
+    );
 
     // Load configuration
     const configuration = await Configuration.find(tmpDir, null);

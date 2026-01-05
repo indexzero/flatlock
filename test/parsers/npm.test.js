@@ -11,13 +11,13 @@
  */
 
 import assert from 'node:assert/strict';
-import { describe, test } from 'node:test';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { describe, test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 // Public API
-import { parseLockfileKey, fromPackageLock } from '../../src/parsers/npm.js';
+import { fromPackageLock, parseLockfileKey } from '../../src/parsers/npm.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const decodedDir = join(__dirname, '..', 'decoded', 'npm');
@@ -82,9 +82,7 @@ describe('npm parsers', () => {
       });
 
       test('parses scoped parent with nested scoped child', () => {
-        const result = parseLockfileKey(
-          'node_modules/@parent/pkg/node_modules/@child/dep'
-        );
+        const result = parseLockfileKey('node_modules/@parent/pkg/node_modules/@child/dep');
         assert.equal(result, '@child/dep');
       });
     });
@@ -103,9 +101,7 @@ describe('npm parsers', () => {
       });
 
       test('extracts package from workspace nested node_modules', () => {
-        const result = parseLockfileKey(
-          'packages/my-lib/node_modules/@types/node'
-        );
+        const result = parseLockfileKey('packages/my-lib/node_modules/@types/node');
         assert.equal(result, '@types/node');
       });
     });
@@ -199,13 +195,17 @@ describe('npm parsers', () => {
             '': { name: 'root', version: '1.0.0' },
             'node_modules/lodash': {
               version: '4.17.21',
-              integrity: 'sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg=='
+              integrity:
+                'sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg=='
             }
           }
         };
 
         const deps = [...fromPackageLock(lockfile)];
-        assert.equal(deps[0].integrity, 'sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==');
+        assert.equal(
+          deps[0].integrity,
+          'sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg=='
+        );
       });
 
       test('yields resolved when present', () => {
@@ -373,10 +373,7 @@ describe('npm parsers', () => {
 
         // Most deps should have integrity
         const withIntegrity = deps.filter(d => d.integrity);
-        assert.ok(
-          withIntegrity.length > deps.length * 0.9,
-          'Most deps should have integrity'
-        );
+        assert.ok(withIntegrity.length > deps.length * 0.9, 'Most deps should have integrity');
       });
 
       test('v3 fixture contains expected structure', () => {

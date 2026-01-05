@@ -488,10 +488,7 @@ lodash@^4.17.21:
         // comparison returns: ['@babel-baseline/core@7.24.4', 'lodash@4.17.21']
         // equinumerous: true because both have 2 packages (same cardinality)
 
-        const flatlockPackages = new Set([
-          '@babel/core@7.24.4',
-          'lodash@4.17.21'
-        ]);
+        const flatlockPackages = new Set(['@babel/core@7.24.4', 'lodash@4.17.21']);
 
         const comparisonPackages = new Set([
           '@babel-baseline/core@7.24.4', // alias
@@ -514,10 +511,7 @@ lodash@^4.17.21:
       });
 
       test('different counts means not equinumerous', () => {
-        const flatlockPackages = new Set([
-          'lodash@4.17.21',
-          'react@18.2.0'
-        ]);
+        const flatlockPackages = new Set(['lodash@4.17.21', 'react@18.2.0']);
 
         const comparisonPackages = new Set([
           'lodash@4.17.21'

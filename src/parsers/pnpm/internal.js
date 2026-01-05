@@ -12,30 +12,30 @@
 // Detection utilities
 export {
   detectVersion,
-  usesAtSeparator,
-  usesSnapshotsSplit,
-  usesInlineSpecifiers,
   hasLeadingSlash,
+  usesAtSeparator,
+  usesInlineSpecifiers,
+  usesSnapshotsSplit
 } from './detect.js';
 
 // Shrinkwrap v3/v4 (2016-2019)
 export {
-  parseSpecShrinkwrap,
-  hasPeerSuffix,
   extractPeerSuffix,
+  hasPeerSuffix,
+  parseSpecShrinkwrap
 } from './shrinkwrap.js';
 
 // v5.x (2019-2022)
 export {
-  parseSpecV5,
-  hasPeerSuffixV5,
   extractPeerSuffixV5,
+  hasPeerSuffixV5,
+  parseSpecV5
 } from './v5.js';
 
 // v6+ (2023+)
 export {
-  parseSpecV6Plus,
-  hasPeerSuffixV6Plus,
   extractPeerSuffixV6Plus,
+  hasPeerSuffixV6Plus,
   parsePeerDependencies,
+  parseSpecV6Plus
 } from './v6plus.js';

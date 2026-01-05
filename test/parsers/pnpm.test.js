@@ -10,38 +10,36 @@
  */
 
 import assert from 'node:assert/strict';
-import { describe, test } from 'node:test';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { describe, test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import yaml from 'js-yaml';
-
+// Internal/advanced APIs for testing version-specific parsers
+import {
+  extractPeerSuffix,
+  extractPeerSuffixV5,
+  extractPeerSuffixV6Plus,
+  hasLeadingSlash,
+  hasPeerSuffix,
+  hasPeerSuffixV5,
+  hasPeerSuffixV6Plus,
+  parsePeerDependencies,
+  parseSpecShrinkwrap,
+  parseSpecV5,
+  parseSpecV6Plus,
+  usesAtSeparator,
+  usesInlineSpecifiers,
+  usesSnapshotsSplit
+} from '../../src/parsers/pnpm/internal.js';
 // Public API
 import {
   detectVersion,
-  parseSpec,
-  parseLockfileKey,
   fromPnpmLock,
+  parseLockfileKey,
+  parseSpec
 } from '../../src/parsers/pnpm.js';
-
-// Internal/advanced APIs for testing version-specific parsers
-import {
-  usesAtSeparator,
-  usesSnapshotsSplit,
-  usesInlineSpecifiers,
-  hasLeadingSlash,
-  parseSpecShrinkwrap,
-  hasPeerSuffix,
-  extractPeerSuffix,
-  parseSpecV5,
-  hasPeerSuffixV5,
-  extractPeerSuffixV5,
-  parseSpecV6Plus,
-  hasPeerSuffixV6Plus,
-  extractPeerSuffixV6Plus,
-  parsePeerDependencies,
-} from '../../src/parsers/pnpm/internal.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const decodedDir = join(__dirname, '..', 'decoded', 'pnpm');
@@ -175,7 +173,10 @@ describe('pnpm parsers', () => {
     });
 
     test('usesInlineSpecifiers returns true for v5-inline', () => {
-      assert.equal(usesInlineSpecifiers({ era: 'v5-inline', version: '5.4-inlineSpecifiers' }), true);
+      assert.equal(
+        usesInlineSpecifiers({ era: 'v5-inline', version: '5.4-inlineSpecifiers' }),
+        true
+      );
     });
 
     test('usesInlineSpecifiers returns true for v6', () => {
@@ -450,7 +451,9 @@ describe('pnpm parsers', () => {
     });
 
     test('parses package with multiple peer dependency suffixes', () => {
-      const result = parseSpecV6Plus('/@aleph-alpha/config-css@0.18.4(@unocss/core@66.5.2)(postcss@8.5.6)');
+      const result = parseSpecV6Plus(
+        '/@aleph-alpha/config-css@0.18.4(@unocss/core@66.5.2)(postcss@8.5.6)'
+      );
       assert.equal(result.name, '@aleph-alpha/config-css');
       assert.equal(result.version, '0.18.4');
     });
