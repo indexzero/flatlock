@@ -68,7 +68,7 @@ export function detectVersion(lockfile) {
     const version = lockfile.shrinkwrapVersion;
     return {
       era: 'shrinkwrap',
-      version: version,
+      version: version ?? 0,
       isShrinkwrap: true
     };
   }

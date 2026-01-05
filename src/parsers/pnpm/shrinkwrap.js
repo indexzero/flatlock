@@ -24,7 +24,7 @@
  * - Slash separator between name and version: /name/version
  * - Peer dependencies after another slash: /name/version/peer@ver
  * - Scoped packages: /@scope/name/version
- * - Scoped peer dependencies use ! to escape the @: /name/1.0.0/peer@2.0.0+@scope!qar@3.0.0
+ * - Scoped peer dependencies use `!` to escape the `@`: `/name/1.0.0/peer@2.0.0+@scope!qar@3.0.0`
  *
  * @param {string} spec - Package spec from shrinkwrap.yaml packages section
  * @returns {ParsedSpec} Parsed name and version
@@ -45,7 +45,7 @@
  * // => { name: 'foo', version: '1.0.0' }
  *
  * @example
- * // With scoped peer dependency (! escapes @)
+ * // With scoped peer dependency (`!` escapes `@`)
  * parseSpecShrinkwrap('/foo/1.0.0/bar@2.0.0+@scope!qar@3.0.0')
  * // => { name: 'foo', version: '1.0.0' }
  *

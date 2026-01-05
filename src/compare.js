@@ -13,9 +13,13 @@ import { parseSpec as parsePnpmSpec } from './parsers/pnpm.js';
 const require = createRequire(import.meta.url);
 
 // Lazy-loaded optional dependencies
+/** @type {typeof import('@npmcli/arborist') | false | null} */
 let Arborist = null;
+/** @type {typeof import('@pnpm/lockfile.fs').readWantedLockfile | false | null} */
 let readWantedLockfile = null;
+/** @type {string | false | null} */
 let cyclonedxCliPath = null;
+/** @type {typeof import('@yarnpkg/core') | false | null} */
 let yarnCore = null;
 
 /**
@@ -204,7 +208,7 @@ async function getPackagesFromCycloneDX(content, _filepath, options = {}) {
 
     // Add workspace flags if specified
     if (options.workspace) {
-      for (const ws of [].concat(options.workspace)) {
+      for (const ws of options.workspace) {
         args.push('-w', ws);
       }
     }
@@ -322,14 +326,14 @@ async function getPackagesFromYarnBerryCore(content, options = {}) {
     );
 
     // Load configuration
-    const configuration = await Configuration.find(tmpDir, null);
+    const configuration = await Configuration.find(/** @type {any} */ (tmpDir), null);
 
     // Create project manually (don't use Project.find which calls setupWorkspaces)
-    const project = new Project(tmpDir, { configuration });
+    const project = new Project(/** @type {any} */ (tmpDir), { configuration });
 
     // Call setupResolutions directly - this parses the lockfile and populates originalPackages
     // This is a private method but it's the only way to get ground truth without a full project
-    await project.setupResolutions();
+    await /** @type {any} */ (project).setupResolutions();
 
     const packages = new Set();
     let workspaceCount = 0;
