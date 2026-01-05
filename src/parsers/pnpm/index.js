@@ -13,13 +13,7 @@
 
 import yaml from 'js-yaml';
 
-import {
-  detectVersion,
-  hasLeadingSlash,
-  usesAtSeparator,
-  usesInlineSpecifiers,
-  usesSnapshotsSplit
-} from './detect.js';
+import { detectVersion } from './detect.js';
 import { parseSpecShrinkwrap } from './shrinkwrap.js';
 import { parseSpecV5 } from './v5.js';
 import { parseSpecV6Plus } from './v6plus.js';

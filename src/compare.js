@@ -168,11 +168,11 @@ async function getPackagesFromArborist(content, _filepath, options = {}) {
 /**
  * Get packages from npm lockfile using CycloneDX SBOM generation
  * @param {string} content - Lockfile content
- * @param {string} filepath - Path to lockfile
+ * @param {string} _filepath - Path to lockfile (unused)
  * @param {CompareOptions} [options] - Options
  * @returns {Promise<PackagesResult | null>}
  */
-async function getPackagesFromCycloneDX(content, filepath, options = {}) {
+async function getPackagesFromCycloneDX(content, _filepath, options = {}) {
   const cliPath = loadCycloneDxCliPath();
   if (!cliPath) return null;
 
@@ -329,7 +329,7 @@ async function getPackagesFromYarnBerryCore(content, options = {}) {
 
     // Call setupResolutions directly - this parses the lockfile and populates originalPackages
     // This is a private method but it's the only way to get ground truth without a full project
-    await project['setupResolutions']();
+    await project.setupResolutions();
 
     const packages = new Set();
     let workspaceCount = 0;
@@ -356,7 +356,7 @@ async function getPackagesFromYarnBerryCore(content, options = {}) {
     }
 
     return { packages, workspaceCount, source: '@yarnpkg/core' };
-  } catch (err) {
+  } catch (_err) {
     // If @yarnpkg/core fails (e.g., incompatible lockfile), return null to fall back
     return null;
   } finally {
@@ -425,10 +425,10 @@ async function getPackagesFromYarnBerry(content, options = {}) {
  * Get packages from pnpm lockfile using @pnpm/lockfile.fs (official parser)
  * @param {string} _content - Lockfile content (unused, reads from disk)
  * @param {string} filepath - Path to lockfile
- * @param {CompareOptions} [options] - Options
+ * @param {CompareOptions} [_options] - Options (unused)
  * @returns {Promise<PackagesResult | null>}
  */
-async function getPackagesFromPnpmOfficial(_content, filepath, options = {}) {
+async function getPackagesFromPnpmOfficial(_content, filepath, _options = {}) {
   const readLockfile = await loadPnpmLockfileFs();
   if (!readLockfile) return null;
 
@@ -450,7 +450,7 @@ async function getPackagesFromPnpmOfficial(_content, filepath, options = {}) {
       return null;
     }
 
-    for (const [key, value] of Object.entries(pkgs)) {
+    for (const [key, _value] of Object.entries(pkgs)) {
       // Skip link/file entries
       if (
         key.startsWith('link:') ||

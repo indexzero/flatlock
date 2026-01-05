@@ -271,9 +271,8 @@ export function parsePeerDependencies(peerSuffix) {
 
   // Match each (name@version) group
   const regex = /\(([^)]+)\)/g;
-  let match;
 
-  while ((match = regex.exec(peerSuffix)) !== null) {
+  for (const match of peerSuffix.matchAll(regex)) {
     const peerSpec = match[1];
     const lastAtIndex = peerSpec.lastIndexOf('@');
 
