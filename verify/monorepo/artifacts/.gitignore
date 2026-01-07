@@ -1,0 +1,3 @@
+# Verification artifacts are generated, not committed
+*
+!.gitignore

@@ -6,9 +6,9 @@
  * Any difference is a parser bug in one or the other.
  */
 
-import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { x } from 'tinyexec';
 import { FlatlockSet } from '../../src/set.js';
 
@@ -23,11 +23,11 @@ const PLATFORM_PATTERNS = [
   '-android-',
   '-freebsd-',
   '-openbsd-',
-  '-sunos-',
+  '-sunos-'
 ];
 
 const PLATFORM_SPECIFIC_PACKAGES = new Set([
-  'fsevents', // macOS only
+  'fsevents' // macOS only
 ]);
 
 /**
@@ -83,10 +83,7 @@ async function setupAndInstall(packageName, version) {
   await writeFile(join(tmpDir, 'package.json'), JSON.stringify(pkg, null, 2));
 
   // Security config
-  await writeFile(
-    join(tmpDir, '.npmrc'),
-    'ignore-scripts=true\naudit=false\nfund=false\n'
-  );
+  await writeFile(join(tmpDir, '.npmrc'), 'ignore-scripts=true\naudit=false\nfund=false\n');
 
   // npm install
   const result = await x('npm', ['install'], {
@@ -110,9 +107,11 @@ async function setupAndInstall(packageName, version) {
 async function runCycloneDX(dir, { lockfileOnly = false } = {}) {
   const args = [
     '@cyclonedx/cyclonedx-npm',
-    '--output-format', 'JSON',
+    '--output-format',
+    'JSON',
     '--flatten-components',
-    '--omit', 'dev'
+    '--omit',
+    'dev'
   ];
 
   if (lockfileOnly) {
@@ -136,9 +135,7 @@ async function runCycloneDX(dir, { lockfileOnly = false } = {}) {
 
   for (const component of sbom.components || []) {
     if (component.type === 'library' && component.name && component.version) {
-      const fullName = component.group
-        ? `${component.group}/${component.name}`
-        : component.name;
+      const fullName = component.group ? `${component.group}/${component.name}` : component.name;
 
       // Exclude root package
       if (fullName === rootName) continue;
@@ -273,7 +270,7 @@ export async function getThreeWayComparison(
     peer: true,
     workspacePackages
   });
-  const monorepoSet = new Set([...monorepoDeps].map(d => `${d.name}@${d.version}`));
+  const _monorepoSet = new Set([...monorepoDeps].map(d => `${d.name}@${d.version}`));
   const monorepoNames = new Set([...monorepoDeps].map(d => d.name));
 
   // Method 2 & 3: Fresh install
@@ -304,8 +301,9 @@ export async function getThreeWayComparison(
       },
       // Parser parity: fresh CycloneDX vs fresh Flatlock
       parserParity: {
-        equal: [...difference(cyclonedxNames, freshFlatlockNames)].length === 0 &&
-               [...difference(freshFlatlockNames, cyclonedxNames)].length === 0,
+        equal:
+          [...difference(cyclonedxNames, freshFlatlockNames)].length === 0 &&
+          [...difference(freshFlatlockNames, cyclonedxNames)].length === 0,
         onlyInCycloneDX: [...difference(cyclonedxNames, freshFlatlockNames)].filter(
           n => !isPlatformSpecific(n)
         ),
@@ -331,7 +329,7 @@ export async function getThreeWayComparison(
  * @param {string} dir
  */
 export async function cleanup(dir) {
-  if (dir && dir.startsWith(tmpdir())) {
+  if (dir?.startsWith(tmpdir())) {
     await rm(dir, { recursive: true, force: true });
   }
 }

@@ -25,8 +25,20 @@ const knownVersionDifferences = new Set([
 
 describe('facebook/jest', { timeout: 300_000 }, () => {
   it('packages/jest', () =>
-    assertGroundTruth({ repo, branch, lockfileName, knownVersionDifferences, workspace: 'packages/jest' }));
+    assertGroundTruth({
+      repo,
+      branch,
+      lockfileName,
+      knownVersionDifferences,
+      workspace: 'packages/jest'
+    }));
 
   it('packages/jest-cli', () =>
-    assertGroundTruth({ repo, branch, lockfileName, knownVersionDifferences, workspace: 'packages/jest-cli' }));
+    assertGroundTruth({
+      repo,
+      branch,
+      lockfileName,
+      knownVersionDifferences,
+      workspace: 'packages/jest-cli'
+    }));
 });

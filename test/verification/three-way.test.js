@@ -13,17 +13,20 @@
  * If they disagree, we can diagnose exactly where the bug is.
  */
 
-import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { getThreeWayComparison, isPlatformSpecific } from '../support/parity.js';
-import { cloneRepo, cleanup } from '../support/monorepo.js';
-import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { describe, it } from 'node:test';
+import { cleanup, cloneRepo } from '../support/monorepo.js';
+import { getThreeWayComparison, isPlatformSpecific } from '../support/parity.js';
 
 // Known version differences that are expected
 const KNOWN_VERSION_DIFFERENCES = {
   'socketio/socket.io': new Set(['undici-types']),
-  'facebook/jest': new Set(['@unrs/resolver-binding-android-arm-eabi', '@unrs/resolver-binding-android-arm64']),
+  'facebook/jest': new Set([
+    '@unrs/resolver-binding-android-arm-eabi',
+    '@unrs/resolver-binding-android-arm64'
+  ])
 };
 
 /**
@@ -43,7 +46,9 @@ async function assertThreeWay(repo, branch, workspace, lockfileName, buildWorksp
     // Build workspace packages map
     const workspacePackages = await buildWorkspaceMap(tmpDir, lockfilePath);
 
-    console.log(`    Running three-way comparison for ${workspacePkg.name}@${workspacePkg.version}...`);
+    console.log(
+      `    Running three-way comparison for ${workspacePkg.name}@${workspacePkg.version}...`
+    );
 
     const result = await getThreeWayComparison(
       lockfilePath,
@@ -97,7 +102,6 @@ async function assertThreeWay(repo, branch, workspace, lockfileName, buildWorksp
       0,
       `Monorepo missing ${unexpectedMissing.length} unexpected packages: ${unexpectedMissing.join(', ')}`
     );
-
   } finally {
     if (tmpDir) await cleanup(tmpDir);
   }
@@ -106,12 +110,22 @@ async function assertThreeWay(repo, branch, workspace, lockfileName, buildWorksp
 // npm monorepos
 describe('Three-Way: npm monorepos', { timeout: 600_000 }, () => {
   it('npm/cli - workspaces/arborist', () =>
-    assertThreeWay('npm/cli', 'latest', 'workspaces/arborist', 'package-lock.json',
-      (dir, lockPath) => buildNpmWorkspacePackagesMap(dir, lockPath)));
+    assertThreeWay(
+      'npm/cli',
+      'latest',
+      'workspaces/arborist',
+      'package-lock.json',
+      (dir, lockPath) => buildNpmWorkspacePackagesMap(dir, lockPath)
+    ));
 
   it('socketio/socket.io - packages/socket.io', () =>
-    assertThreeWay('socketio/socket.io', 'main', 'packages/socket.io', 'package-lock.json',
-      (dir, lockPath) => buildNpmWorkspacePackagesMap(dir, lockPath)));
+    assertThreeWay(
+      'socketio/socket.io',
+      'main',
+      'packages/socket.io',
+      'package-lock.json',
+      (dir, lockPath) => buildNpmWorkspacePackagesMap(dir, lockPath)
+    ));
 });
 
 // Import the workspace map builders from monorepo.js

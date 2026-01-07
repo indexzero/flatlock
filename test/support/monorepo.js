@@ -10,11 +10,11 @@
  * always installable via npm.
  */
 
-import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { x } from 'tinyexec';
+import { join } from 'node:path';
 import fg from 'fast-glob';
+import { x } from 'tinyexec';
 import { FlatlockSet } from '../../src/set.js';
 
 /**
@@ -28,8 +28,10 @@ export async function cloneRepo(repo, branch = 'main') {
 
   const result = await x('git', [
     'clone',
-    '--depth', '1',
-    '--branch', branch,
+    '--depth',
+    '1',
+    '--branch',
+    branch,
     `https://github.com/${repo}.git`,
     tmpDir
   ]);
@@ -49,25 +51,16 @@ export async function cloneRepo(repo, branch = 'main') {
  */
 export async function writeSecurityConfig(dir, packageManager) {
   // All package managers: .npmrc with ignore-scripts
-  await writeFile(
-    join(dir, '.npmrc'),
-    'ignore-scripts=true\naudit=false\nfund=false\n'
-  );
+  await writeFile(join(dir, '.npmrc'), 'ignore-scripts=true\naudit=false\nfund=false\n');
 
   if (packageManager === 'pnpm') {
     // pnpm also respects .npmrc, but be explicit
-    await writeFile(
-      join(dir, '.pnpmrc'),
-      'ignore-scripts=true\n'
-    );
+    await writeFile(join(dir, '.pnpmrc'), 'ignore-scripts=true\n');
   }
 
   if (packageManager === 'yarn') {
     // Yarn berry uses .yarnrc.yml
-    await writeFile(
-      join(dir, '.yarnrc.yml'),
-      'enableScripts: false\nenableTelemetry: false\n'
-    );
+    await writeFile(join(dir, '.yarnrc.yml'), 'enableScripts: false\nenableTelemetry: false\n');
   }
 }
 
@@ -78,13 +71,16 @@ export async function writeSecurityConfig(dir, packageManager) {
  * @param {'npm' | 'pnpm' | 'yarn'} packageManager
  * @returns {Promise<Set<string>>} Set of name@version strings
  */
-export async function getCycloneDXPackages(dir, workspace, packageManager) {
+export async function getCycloneDXPackages(dir, workspace, _packageManager) {
   const args = [
     '@cyclonedx/cyclonedx-npm',
-    '-w', workspace,
-    '--output-format', 'JSON',
+    '-w',
+    workspace,
+    '--output-format',
+    'JSON',
     '--flatten-components',
-    '--omit', 'dev'
+    '--omit',
+    'dev'
   ];
 
   const result = await x('npx', args, {
@@ -106,9 +102,7 @@ export async function getCycloneDXPackages(dir, workspace, packageManager) {
   for (const component of sbom.components || []) {
     if (component.type === 'library' && component.name && component.version) {
       // CycloneDX splits scoped packages: group="@types", name="node"
-      const fullName = component.group
-        ? `${component.group}/${component.name}`
-        : component.name;
+      const fullName = component.group ? `${component.group}/${component.name}` : component.name;
       const key = `${fullName}@${component.version}`;
 
       // Exclude self (we want dependencies, not self)
@@ -289,7 +283,7 @@ async function buildYarnWorkspacePackagesMap(dir, lockfilePath) {
 
     const match = key.match(/^(.+)@workspace:(.+)$/);
     if (match) {
-      const [, name, wsPath] = match;
+      const [, _name, wsPath] = match;
       if (wsPath === '.') continue;
 
       try {
@@ -330,7 +324,9 @@ async function buildYarnWorkspacePackagesMap(dir, lockfilePath) {
       }
     } catch (err) {
       // Root package.json issue is a hard failure for yarn classic detection
-      console.warn(`    WARNING: Could not read root package.json for yarn classic workspaces: ${err.message}`);
+      console.warn(
+        `    WARNING: Could not read root package.json for yarn classic workspaces: ${err.message}`
+      );
     }
   }
 
@@ -362,7 +358,7 @@ export function difference(a, b) {
  * @param {string} dir
  */
 export async function cleanup(dir) {
-  if (dir && dir.startsWith(tmpdir())) {
+  if (dir?.startsWith(tmpdir())) {
     await rm(dir, { recursive: true, force: true });
   }
 }
@@ -432,12 +428,18 @@ export async function getGroundTruth(packageName, version) {
     }
 
     // CycloneDX
-    const cdxResult = await x('npx', [
-      '@cyclonedx/cyclonedx-npm',
-      '--output-format', 'JSON',
-      '--flatten-components',
-      '--omit', 'dev'
-    ], { nodeOptions: { cwd: tmpDir } });
+    const cdxResult = await x(
+      'npx',
+      [
+        '@cyclonedx/cyclonedx-npm',
+        '--output-format',
+        'JSON',
+        '--flatten-components',
+        '--omit',
+        'dev'
+      ],
+      { nodeOptions: { cwd: tmpDir } }
+    );
 
     if (cdxResult.exitCode !== 0) {
       throw new Error(`CycloneDX failed: ${cdxResult.stderr}`);
@@ -489,7 +491,9 @@ export async function assertGroundTruth(options) {
     const extra = [...flatlockNames].filter(n => !groundTruthNames.has(n));
     const unexpectedMissing = missing.filter(n => !knownVersionDifferences.has(n));
 
-    console.log(`    missing:      ${missing.length}${knownVersionDifferences.size > 0 ? ` (${unexpectedMissing.length} unexpected)` : ''}`);
+    console.log(
+      `    missing:      ${missing.length}${knownVersionDifferences.size > 0 ? ` (${unexpectedMissing.length} unexpected)` : ''}`
+    );
     console.log(`    extra:        ${extra.length}`);
 
     if (unexpectedMissing.length > 0) {
@@ -500,8 +504,11 @@ export async function assertGroundTruth(options) {
     }
 
     const assert = await import('node:assert');
-    assert.default.strictEqual(unexpectedMissing.length, 0,
-      `flatlock missing ${unexpectedMissing.length} unexpected package names: ${unexpectedMissing.join(', ')}`);
+    assert.default.strictEqual(
+      unexpectedMissing.length,
+      0,
+      `flatlock missing ${unexpectedMissing.length} unexpected package names: ${unexpectedMissing.join(', ')}`
+    );
   } finally {
     if (tmpDir) await cleanup(tmpDir);
   }
