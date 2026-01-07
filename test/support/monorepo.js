@@ -172,6 +172,7 @@ async function buildPnpmWorkspacePackagesMap(dir, lockfilePath) {
   const lockfile = yaml.load(content);
 
   const workspacePackages = {};
+  const skipped = [];
   const importers = lockfile.importers || {};
 
   for (const wsPath of Object.keys(importers)) {
@@ -184,8 +185,18 @@ async function buildPnpmWorkspacePackagesMap(dir, lockfilePath) {
         name: pkg.name,
         version: pkg.version
       };
-    } catch {
-      // Workspace package.json not found, skip
+    } catch (err) {
+      skipped.push({ path: wsPath, reason: err.message });
+    }
+  }
+
+  if (skipped.length > 0) {
+    console.warn(`    WARNING: Skipped ${skipped.length} pnpm workspace(s):`);
+    for (const { path, reason } of skipped.slice(0, 5)) {
+      console.warn(`      - ${path}: ${reason}`);
+    }
+    if (skipped.length > 5) {
+      console.warn(`      ... and ${skipped.length - 5} more`);
     }
   }
 
@@ -205,12 +216,19 @@ async function buildNpmWorkspacePackagesMap(dir, lockfilePath) {
   const lockfile = JSON.parse(content);
 
   const workspacePackages = {};
+  const skipped = [];
   const packages = lockfile.packages || {};
 
   // Find all workspace entries (paths without node_modules that have version)
   for (const [key, entry] of Object.entries(packages)) {
-    // Skip root, node_modules entries, and entries without version
-    if (key === '' || key.includes('node_modules') || !entry.version) continue;
+    // Skip root and node_modules entries (those are installed packages, not workspaces)
+    if (key === '' || key.includes('node_modules')) continue;
+
+    // Workspace entries without version are suspicious - track them
+    if (!entry.version) {
+      skipped.push({ path: key, reason: 'no version in lockfile entry' });
+      continue;
+    }
 
     // This is a workspace package definition
     let name = entry.name;
@@ -221,8 +239,8 @@ async function buildNpmWorkspacePackagesMap(dir, lockfilePath) {
         const pkgPath = join(dir, key, 'package.json');
         const pkg = JSON.parse(await readFile(pkgPath, 'utf8'));
         name = pkg.name;
-      } catch {
-        // Couldn't read package.json, skip
+      } catch (err) {
+        skipped.push({ path: key, reason: err.message });
         continue;
       }
     }
@@ -232,6 +250,18 @@ async function buildNpmWorkspacePackagesMap(dir, lockfilePath) {
         name,
         version: entry.version
       };
+    } else {
+      skipped.push({ path: key, reason: 'no name in lockfile or package.json' });
+    }
+  }
+
+  if (skipped.length > 0) {
+    console.warn(`    WARNING: Skipped ${skipped.length} npm workspace(s):`);
+    for (const { path, reason } of skipped.slice(0, 5)) {
+      console.warn(`      - ${path}: ${reason}`);
+    }
+    if (skipped.length > 5) {
+      console.warn(`      ... and ${skipped.length - 5} more`);
     }
   }
 
@@ -251,6 +281,7 @@ async function buildYarnWorkspacePackagesMap(dir, lockfilePath) {
   const lockfile = parseSyml(content);
 
   const workspacePackages = {};
+  const skipped = [];
 
   // First try yarn berry format: "@babel/parser@workspace:packages/babel-parser"
   for (const key of Object.keys(lockfile)) {
@@ -268,8 +299,8 @@ async function buildYarnWorkspacePackagesMap(dir, lockfilePath) {
           name: pkg.name,
           version: pkg.version
         };
-      } catch {
-        // Workspace package.json not found, skip
+      } catch (err) {
+        skipped.push({ path: wsPath, reason: err.message });
       }
     }
   }
@@ -292,13 +323,24 @@ async function buildYarnWorkspacePackagesMap(dir, lockfilePath) {
               name: pkg.name,
               version: pkg.version
             };
-          } catch {
-            // Workspace package.json not found, skip
+          } catch (err) {
+            skipped.push({ path: wsPath, reason: err.message });
           }
         }
       }
-    } catch {
-      // Root package.json not found or invalid, skip
+    } catch (err) {
+      // Root package.json issue is a hard failure for yarn classic detection
+      console.warn(`    WARNING: Could not read root package.json for yarn classic workspaces: ${err.message}`);
+    }
+  }
+
+  if (skipped.length > 0) {
+    console.warn(`    WARNING: Skipped ${skipped.length} yarn workspace(s):`);
+    for (const { path, reason } of skipped.slice(0, 5)) {
+      console.warn(`      - ${path}: ${reason}`);
+    }
+    if (skipped.length > 5) {
+      console.warn(`      ... and ${skipped.length - 5} more`);
     }
   }
 
@@ -416,6 +458,52 @@ export async function getGroundTruth(packageName, version) {
     return { names, packages };
   } finally {
     await rm(tmpDir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Assert ground truth for a workspace
+ * Shared implementation used by all monorepo tests across all package managers.
+ *
+ * @param {Object} options
+ * @param {string} options.repo - GitHub repo (owner/repo)
+ * @param {string} options.branch - Branch to test
+ * @param {string} options.workspace - Workspace path within repo
+ * @param {string} options.lockfileName - Lockfile name (package-lock.json, pnpm-lock.yaml, yarn.lock)
+ * @param {Set<string>} [options.knownVersionDifferences] - Package names expected to differ due to version drift
+ * @returns {Promise<void>}
+ */
+export async function assertGroundTruth(options) {
+  const { repo, branch, workspace, lockfileName, knownVersionDifferences = new Set() } = options;
+  let tmpDir;
+
+  try {
+    const result = await testWorkspaceGroundTruth({ repo, branch, workspace, lockfileName });
+    tmpDir = result.tmpDir;
+    const { groundTruthNames, flatlockNames } = result;
+
+    console.log(`    ground truth: ${groundTruthNames.size} packages`);
+    console.log(`    flatlock:     ${flatlockNames.size} packages`);
+
+    const missing = [...groundTruthNames].filter(n => !flatlockNames.has(n));
+    const extra = [...flatlockNames].filter(n => !groundTruthNames.has(n));
+    const unexpectedMissing = missing.filter(n => !knownVersionDifferences.has(n));
+
+    console.log(`    missing:      ${missing.length}${knownVersionDifferences.size > 0 ? ` (${unexpectedMissing.length} unexpected)` : ''}`);
+    console.log(`    extra:        ${extra.length}`);
+
+    if (unexpectedMissing.length > 0) {
+      console.log(`    UNEXPECTED MISSING: ${unexpectedMissing.slice(0, 10).join(', ')}`);
+    }
+    if (extra.length > 0) {
+      console.log(`    EXTRA: ${extra.slice(0, 10).join(', ')}`);
+    }
+
+    const assert = await import('node:assert');
+    assert.default.strictEqual(unexpectedMissing.length, 0,
+      `flatlock missing ${unexpectedMissing.length} unexpected package names: ${unexpectedMissing.join(', ')}`);
+  } finally {
+    if (tmpDir) await cleanup(tmpDir);
   }
 }
 
