@@ -2,9 +2,9 @@
  * Debug script for yarn berry monorepo issues
  */
 
-import { mkdtemp, rm, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { x } from 'tinyexec';
 import { FlatlockSet } from '../../src/set.js';
 

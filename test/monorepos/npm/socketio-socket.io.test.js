@@ -23,11 +23,29 @@ const knownVersionDifferences = new Set([
 
 describe('socketio/socket.io', { timeout: 300_000 }, () => {
   it('packages/socket.io', () =>
-    assertGroundTruth({ repo, branch, lockfileName, knownVersionDifferences, workspace: 'packages/socket.io' }));
+    assertGroundTruth({
+      repo,
+      branch,
+      lockfileName,
+      knownVersionDifferences,
+      workspace: 'packages/socket.io'
+    }));
 
   it('packages/engine.io', () =>
-    assertGroundTruth({ repo, branch, lockfileName, knownVersionDifferences, workspace: 'packages/engine.io' }));
+    assertGroundTruth({
+      repo,
+      branch,
+      lockfileName,
+      knownVersionDifferences,
+      workspace: 'packages/engine.io'
+    }));
 
   it('packages/socket.io-client', () =>
-    assertGroundTruth({ repo, branch, lockfileName, knownVersionDifferences, workspace: 'packages/socket.io-client' }));
+    assertGroundTruth({
+      repo,
+      branch,
+      lockfileName,
+      knownVersionDifferences,
+      workspace: 'packages/socket.io-client'
+    }));
 });

@@ -3,12 +3,12 @@
  *
  * The vessel: cyclonedx-npm -w only works with npm workspaces
  * The need: ground truth SBOM for any package
- * The way: npm install the published package, run cyclonedx on that
+ * The way: npm install the published package, run cdxgen on that
  */
 
-import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { x } from 'tinyexec';
 
 /**
@@ -34,10 +34,7 @@ export async function getGroundTruthSBOM(packageName, version) {
     await writeFile(join(tmpDir, 'package.json'), JSON.stringify(pkg, null, 2));
 
     // 2. Write security config
-    await writeFile(
-      join(tmpDir, '.npmrc'),
-      'ignore-scripts=true\naudit=false\nfund=false\n'
-    );
+    await writeFile(join(tmpDir, '.npmrc'), 'ignore-scripts=true\naudit=false\nfund=false\n');
 
     // 3. npm install
     const installResult = await x('npm', ['install'], {
@@ -48,29 +45,32 @@ export async function getGroundTruthSBOM(packageName, version) {
       throw new Error(`npm install failed: ${installResult.stderr}`);
     }
 
-    // 4. Run CycloneDX
-    const cdxResult = await x('npx', [
-      '@cyclonedx/cyclonedx-npm',
-      '--output-format', 'JSON',
-      '--flatten-components',
-      '--omit', 'dev'
-    ], {
-      nodeOptions: { cwd: tmpDir }
-    });
+    // 4. Run cdxgen (CycloneDX generator)
+    const sbomPath = join(tmpDir, 'sbom.json');
+    const cdxResult = await x(
+      'npx',
+      [
+        '@cyclonedx/cdxgen',
+        '--required-only',
+        '-o',
+        sbomPath
+      ],
+      {
+        nodeOptions: { cwd: tmpDir }
+      }
+    );
 
     if (cdxResult.exitCode !== 0) {
-      throw new Error(`CycloneDX failed: ${cdxResult.stderr}`);
+      throw new Error(`cdxgen failed: ${cdxResult.stderr}`);
     }
 
     // 5. Parse SBOM
-    const sbom = JSON.parse(cdxResult.stdout);
+    const sbom = JSON.parse(await readFile(sbomPath, 'utf8'));
     const packages = new Set();
 
     for (const component of sbom.components || []) {
       if (component.type === 'library' && component.name && component.version) {
-        const fullName = component.group
-          ? `${component.group}/${component.name}`
-          : component.name;
+        const fullName = component.group ? `${component.group}/${component.name}` : component.name;
         packages.add(`${fullName}@${component.version}`);
       }
     }
