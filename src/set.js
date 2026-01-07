@@ -18,11 +18,18 @@ import {
  */
 
 /**
+ * @typedef {Object} WorkspacePackage
+ * @property {string} name - Package name (e.g., '@vue/shared')
+ * @property {string} version - Package version (e.g., '3.5.26')
+ */
+
+/**
  * @typedef {Object} DependenciesOfOptions
  * @property {string} [workspacePath] - Path to workspace (e.g., 'packages/foo')
  * @property {boolean} [dev=false] - Include devDependencies
  * @property {boolean} [optional=true] - Include optionalDependencies
  * @property {boolean} [peer=false] - Include peerDependencies (default false: peers are provided by consumer)
+ * @property {Record<string, WorkspacePackage>} [workspacePackages] - Map of workspace path to package info for resolving workspace links
  */
 
 /**
@@ -84,6 +91,9 @@ export class FlatlockSet {
   /** @type {LockfileImporters | null} Workspace importers (pnpm) */
   #importers = null;
 
+  /** @type {Record<string, any> | null} Snapshots (pnpm v9) */
+  #snapshots = null;
+
   /** @type {LockfileType | null} */
   #type = null;
 
@@ -95,9 +105,10 @@ export class FlatlockSet {
    * @param {Map<string, Dependency>} deps
    * @param {LockfilePackages | null} packages
    * @param {LockfileImporters | null} importers
+   * @param {Record<string, any> | null} snapshots
    * @param {LockfileType | null} type
    */
-  constructor(internal, deps, packages, importers, type) {
+  constructor(internal, deps, packages, importers, snapshots, type) {
     if (internal !== INTERNAL) {
       throw new Error(
         'FlatlockSet cannot be constructed directly. Use FlatlockSet.fromPath() or FlatlockSet.fromString()'
@@ -106,6 +117,7 @@ export class FlatlockSet {
     this.#deps = deps;
     this.#packages = packages;
     this.#importers = importers;
+    this.#snapshots = snapshots;
     this.#type = type;
     this.#canTraverse = packages !== null;
   }
@@ -138,9 +150,9 @@ export class FlatlockSet {
     }
 
     // Parse once, extract both deps and raw data
-    const { deps, packages, importers } = FlatlockSet.#parseAll(content, type, options);
+    const { deps, packages, importers, snapshots } = FlatlockSet.#parseAll(content, type, options);
 
-    return new FlatlockSet(INTERNAL, deps, packages, importers, type);
+    return new FlatlockSet(INTERNAL, deps, packages, importers, snapshots, type);
   }
 
   /**
@@ -148,7 +160,7 @@ export class FlatlockSet {
    * @param {string} content
    * @param {LockfileType} type
    * @param {FromStringOptions} options
-   * @returns {{ deps: Map<string, Dependency>, packages: LockfilePackages, importers: LockfileImporters | null }}
+   * @returns {{ deps: Map<string, Dependency>, packages: LockfilePackages, importers: LockfileImporters | null, snapshots: Record<string, any> | null }}
    */
   static #parseAll(content, type, options) {
     /** @type {Map<string, Dependency>} */
@@ -157,6 +169,8 @@ export class FlatlockSet {
     let packages = {};
     /** @type {LockfileImporters | null} */
     let importers = null;
+    /** @type {Record<string, any> | null} */
+    let snapshots = null;
 
     switch (type) {
       case Type.NPM: {
@@ -173,6 +187,7 @@ export class FlatlockSet {
         const lockfile = yaml.load(content);
         packages = lockfile.packages || {};
         importers = lockfile.importers || null;
+        snapshots = lockfile.snapshots || null;
         // Pass pre-parsed lockfile object to avoid re-parsing
         for (const dep of fromPnpmLock(lockfile, options)) {
           deps.set(`${dep.name}@${dep.version}`, dep);
@@ -198,7 +213,7 @@ export class FlatlockSet {
       }
     }
 
-    return { deps, packages, importers };
+    return { deps, packages, importers, snapshots };
   }
 
   /** @returns {number} */
@@ -277,7 +292,7 @@ export class FlatlockSet {
         deps.set(key, dep);
       }
     }
-    return new FlatlockSet(INTERNAL, deps, null, null, null);
+    return new FlatlockSet(INTERNAL, deps, null, null, null, null);
   }
 
   /**
@@ -292,7 +307,7 @@ export class FlatlockSet {
         deps.set(key, dep);
       }
     }
-    return new FlatlockSet(INTERNAL, deps, null, null, null);
+    return new FlatlockSet(INTERNAL, deps, null, null, null, null);
   }
 
   /**
@@ -307,7 +322,7 @@ export class FlatlockSet {
         deps.set(key, dep);
       }
     }
-    return new FlatlockSet(INTERNAL, deps, null, null, null);
+    return new FlatlockSet(INTERNAL, deps, null, null, null, null);
   }
 
   /**
@@ -371,17 +386,32 @@ export class FlatlockSet {
       );
     }
 
-    const { workspacePath, dev = false, optional = true, peer = false } = options;
+    const { workspacePath, dev = false, optional = true, peer = false, workspacePackages } = options;
 
     // Collect seed dependencies from package.json
     const seeds = this.#collectSeeds(packageJson, { dev, optional, peer });
 
     // If pnpm with workspacePath, use importers to get resolved versions
     if (this.#type === Type.PNPM && workspacePath && this.#importers) {
-      return this.#dependenciesOfPnpm(seeds, workspacePath, { dev, optional, peer });
+      return this.#dependenciesOfPnpm(seeds, workspacePath, { dev, optional, peer, workspacePackages });
     }
 
-    // BFS traversal for npm/yarn (hoisted resolution)
+    // If yarn berry with workspace packages, use workspace-aware resolution
+    if (this.#type === Type.YARN_BERRY && workspacePackages) {
+      return this.#dependenciesOfYarnBerry(seeds, packageJson, { dev, optional, peer, workspacePackages });
+    }
+
+    // If yarn classic with workspace packages, use workspace-aware resolution
+    if (this.#type === Type.YARN_CLASSIC && workspacePackages) {
+      return this.#dependenciesOfYarnClassic(seeds, packageJson, { dev, optional, peer, workspacePackages });
+    }
+
+    // If npm with workspace packages, use workspace-aware resolution
+    if (this.#type === Type.NPM && workspacePackages) {
+      return this.#dependenciesOfNpm(seeds, workspacePath, { dev, optional, peer, workspacePackages });
+    }
+
+    // BFS traversal for npm/yarn-classic (hoisted resolution)
     return this.#dependenciesOfHoisted(seeds, workspacePath);
   }
 
@@ -418,12 +448,406 @@ export class FlatlockSet {
 
   /**
    * pnpm-specific resolution using importers
-   * @param {Set<string>} seeds
+   *
+   * pnpm monorepos have workspace packages linked via link: protocol.
+   * To get the full dependency tree, we need to:
+   * 1. Follow workspace links recursively, emitting workspace packages
+   * 2. Collect external deps from each visited workspace
+   * 3. Traverse the packages/snapshots section for transitive deps
+   *
+   * @param {Set<string>} _seeds - Unused, we derive from importers
    * @param {string} workspacePath
-   * @param {{ dev: boolean, optional: boolean, peer: boolean }} options
+   * @param {{ dev: boolean, optional: boolean, peer: boolean, workspacePackages?: Record<string, {name: string, version: string}> }} options
    * @returns {FlatlockSet}
    */
-  #dependenciesOfPnpm(seeds, workspacePath, { dev, optional, peer }) {
+  #dependenciesOfPnpm(_seeds, workspacePath, { dev, optional, peer, workspacePackages }) {
+    /** @type {Map<string, Dependency>} */
+    const result = new Map();
+
+    // Phase 1: Follow workspace links, emit workspace packages, collect external deps
+    const externalDeps = new Set();
+    const visitedWorkspaces = new Set();
+    const workspaceQueue = [workspacePath];
+
+    while (workspaceQueue.length > 0) {
+      const ws = /** @type {string} */ (workspaceQueue.shift());
+      if (visitedWorkspaces.has(ws)) continue;
+      visitedWorkspaces.add(ws);
+
+      // If we have workspace package info, emit this workspace as a dependency
+      // (except for the starting workspace - dependenciesOf returns deps, not self)
+      if (workspacePackages && ws !== workspacePath) {
+        const wsPkg = workspacePackages[ws];
+        if (wsPkg) {
+          result.set(`${wsPkg.name}@${wsPkg.version}`, {
+            name: wsPkg.name,
+            version: wsPkg.version
+          });
+        }
+      }
+
+      const importer = this.#importers?.[ws];
+      if (!importer) continue;
+
+      // Collect dependencies from importer
+      // v9 format: { specifier: '...', version: '...' }
+      // older format: version string directly
+      const depSections = [importer.dependencies];
+      if (dev) depSections.push(importer.devDependencies);
+      if (optional) depSections.push(importer.optionalDependencies);
+      if (peer) depSections.push(importer.peerDependencies);
+
+      for (const deps of depSections) {
+        if (!deps) continue;
+        for (const [name, spec] of Object.entries(deps)) {
+          // Handle v9 object format or older string format
+          const version = typeof spec === 'object' && spec !== null
+            ? /** @type {{version?: string}} */ (spec).version
+            : /** @type {string} */ (spec);
+
+          if (!version) continue;
+
+          if (version.startsWith('link:')) {
+            // Workspace link - resolve and follow
+            const linkedPath = version.slice(5); // Remove 'link:'
+            const resolvedPath = this.#resolveRelativePath(ws, linkedPath);
+            if (!visitedWorkspaces.has(resolvedPath)) {
+              workspaceQueue.push(resolvedPath);
+            }
+          } else {
+            // External dependency
+            externalDeps.add(name);
+          }
+        }
+      }
+    }
+
+    // Phase 2: Traverse external deps and their transitive dependencies
+    // In v9, dependencies are in snapshots; in older versions, they're in packages
+    const depsSource = this.#snapshots || this.#packages || {};
+    const visitedDeps = new Set();
+    const depQueue = [...externalDeps];
+
+    while (depQueue.length > 0) {
+      const name = /** @type {string} */ (depQueue.shift());
+      if (visitedDeps.has(name)) continue;
+      visitedDeps.add(name);
+
+      // Find this package in our deps map
+      const dep = this.#findByName(name);
+      if (dep) {
+        result.set(`${dep.name}@${dep.version}`, dep);
+
+        // Find transitive deps from snapshots/packages
+        // Keys are like "name@version" or "@scope/name@version"
+        for (const [key, pkg] of Object.entries(depsSource)) {
+          if (key.startsWith(`${name}@`)) {
+            // Found the package entry, get its dependencies
+            for (const transName of Object.keys(pkg.dependencies || {})) {
+              if (!visitedDeps.has(transName)) {
+                depQueue.push(transName);
+              }
+            }
+            if (optional) {
+              for (const transName of Object.keys(pkg.optionalDependencies || {})) {
+                if (!visitedDeps.has(transName)) {
+                  depQueue.push(transName);
+                }
+              }
+            }
+            break; // Found the package, no need to keep searching
+          }
+        }
+      }
+    }
+
+    return new FlatlockSet(INTERNAL, result, null, null, null, this.#type);
+  }
+
+  /**
+   * npm-specific resolution with workspace support
+   *
+   * npm monorepos have workspace packages that are symlinked from node_modules.
+   * Packages can have nested node_modules with different versions.
+   *
+   * @param {Set<string>} seeds - Seed dependency names from package.json
+   * @param {string} workspacePath - Path to workspace (e.g., 'workspaces/arborist')
+   * @param {{ dev: boolean, optional: boolean, peer: boolean, workspacePackages: Record<string, {name: string, version: string}> }} options
+   * @returns {FlatlockSet}
+   */
+  #dependenciesOfNpm(seeds, workspacePath, { dev, optional, peer, workspacePackages }) {
+    /** @type {Map<string, Dependency>} */
+    const result = new Map();
+
+    // Build name -> workspace path mapping
+    const nameToWorkspace = new Map();
+    for (const [wsPath, pkg] of Object.entries(workspacePackages)) {
+      nameToWorkspace.set(pkg.name, wsPath);
+    }
+
+    // Queue entries: { name, contextPath } where contextPath is where to look for nested node_modules
+    // contextPath is either a workspace path or a node_modules package path
+    const queue = [];
+    const visited = new Set(); // Track "name@contextPath" to handle same package at different contexts
+
+    // Phase 1: Process workspace packages
+    const visitedWorkspaces = new Set();
+    const workspaceQueue = [workspacePath];
+
+    while (workspaceQueue.length > 0) {
+      const wsPath = /** @type {string} */ (workspaceQueue.shift());
+      if (visitedWorkspaces.has(wsPath)) continue;
+      visitedWorkspaces.add(wsPath);
+
+      const wsEntry = this.#packages?.[wsPath];
+      if (!wsEntry) continue;
+
+      // Emit this workspace package (except starting workspace)
+      // Name comes from workspacePackages map since lockfile may not have it
+      if (wsPath !== workspacePath) {
+        const wsPkg = workspacePackages[wsPath];
+        if (wsPkg?.name && wsPkg?.version) {
+          result.set(`${wsPkg.name}@${wsPkg.version}`, {
+            name: wsPkg.name,
+            version: wsPkg.version
+          });
+        }
+      }
+
+      // Collect dependencies
+      const depSections = [wsEntry.dependencies];
+      if (dev) depSections.push(wsEntry.devDependencies);
+      if (optional) depSections.push(wsEntry.optionalDependencies);
+      if (peer) depSections.push(wsEntry.peerDependencies);
+
+      for (const deps of depSections) {
+        if (!deps) continue;
+        for (const name of Object.keys(deps)) {
+          if (nameToWorkspace.has(name)) {
+            const linkedWsPath = nameToWorkspace.get(name);
+            if (!visitedWorkspaces.has(linkedWsPath)) {
+              workspaceQueue.push(linkedWsPath);
+            }
+          } else {
+            // Add to queue with workspace context
+            queue.push({ name, contextPath: wsPath });
+          }
+        }
+      }
+    }
+
+    // Phase 2: Traverse external dependencies with context-aware resolution
+    while (queue.length > 0) {
+      const { name, contextPath } = /** @type {{name: string, contextPath: string}} */ (queue.shift());
+      const visitKey = `${name}@${contextPath}`;
+      if (visited.has(visitKey)) continue;
+      visited.add(visitKey);
+
+      // Check if this is a workspace package
+      if (nameToWorkspace.has(name)) {
+        const wsPath = nameToWorkspace.get(name);
+        const wsEntry = this.#packages?.[wsPath];
+        if (wsEntry?.name && wsEntry?.version) {
+          result.set(`${wsEntry.name}@${wsEntry.version}`, {
+            name: wsEntry.name,
+            version: wsEntry.version
+          });
+        }
+        continue;
+      }
+
+      // Resolve package using npm's resolution algorithm:
+      // 1. Check nested node_modules at contextPath
+      // 2. Walk up the path checking each parent's node_modules
+      // 3. Fall back to root node_modules
+      let entry = null;
+      let pkgPath = null;
+
+      // Try nested node_modules at context path
+      const nestedKey = `${contextPath}/node_modules/${name}`;
+      if (this.#packages?.[nestedKey]) {
+        entry = this.#packages[nestedKey];
+        pkgPath = nestedKey;
+      }
+
+      // Walk up context path looking for the package
+      if (!entry) {
+        const parts = contextPath.split('/');
+        while (parts.length > 0) {
+          const parentKey = `${parts.join('/')}/node_modules/${name}`;
+          if (this.#packages?.[parentKey]) {
+            entry = this.#packages[parentKey];
+            pkgPath = parentKey;
+            break;
+          }
+          parts.pop();
+        }
+      }
+
+      // Fall back to root node_modules
+      if (!entry) {
+        const rootKey = `node_modules/${name}`;
+        if (this.#packages?.[rootKey]) {
+          entry = this.#packages[rootKey];
+          pkgPath = rootKey;
+        }
+      }
+
+      if (!entry?.version) continue;
+
+      // Follow symlinks for workspace packages
+      if (entry.link && entry.resolved) {
+        const resolvedEntry = this.#packages?.[entry.resolved];
+        if (resolvedEntry?.version) {
+          entry = resolvedEntry;
+          pkgPath = entry.resolved;
+        }
+      }
+
+      result.set(`${name}@${entry.version}`, { name, version: entry.version });
+
+      // Queue transitive dependencies with this package's path as context
+      // The context should be the directory containing this package's node_modules
+      const depContext = pkgPath;
+
+      for (const transName of Object.keys(entry.dependencies || {})) {
+        queue.push({ name: transName, contextPath: depContext });
+      }
+      if (optional) {
+        for (const transName of Object.keys(entry.optionalDependencies || {})) {
+          queue.push({ name: transName, contextPath: depContext });
+        }
+      }
+    }
+
+    return new FlatlockSet(INTERNAL, result, null, null, null, this.#type);
+  }
+
+  /**
+   * Resolve a relative path from a workspace path
+   * @param {string} from - Current workspace path (e.g., 'packages/vue')
+   * @param {string} relative - Relative path (e.g., '../compiler-dom')
+   * @returns {string} Resolved path (e.g., 'packages/compiler-dom')
+   */
+  #resolveRelativePath(from, relative) {
+    const parts = from.split('/');
+    const relParts = relative.split('/');
+
+    for (const p of relParts) {
+      if (p === '..') {
+        parts.pop();
+      } else if (p !== '.') {
+        parts.push(p);
+      }
+    }
+
+    return parts.join('/');
+  }
+
+  /**
+   * Yarn berry-specific resolution with workspace support
+   *
+   * Yarn berry workspace packages use `workspace:*` or `workspace:^` specifiers.
+   * These need to be resolved to actual package versions from workspacePackages.
+   *
+   * @param {Set<string>} seeds - Seed dependency names from package.json
+   * @param {PackageJson} packageJson - The workspace's package.json
+   * @param {{ dev: boolean, optional: boolean, peer: boolean, workspacePackages: Record<string, {name: string, version: string}> }} options
+   * @returns {FlatlockSet}
+   */
+  #dependenciesOfYarnBerry(seeds, packageJson, { dev, optional, peer, workspacePackages }) {
+    /** @type {Map<string, Dependency>} */
+    const result = new Map();
+    /** @type {Set<string>} */
+    const visited = new Set(); // Track by name@version
+
+    // Build a map of package name -> workspace path for quick lookup
+    const nameToWorkspace = new Map();
+    for (const [wsPath, pkg] of Object.entries(workspacePackages)) {
+      nameToWorkspace.set(pkg.name, { path: wsPath, ...pkg });
+    }
+
+    // Get dependency specifiers from package.json
+    const rootSpecs = {
+      ...packageJson.dependencies,
+      ...(dev ? packageJson.devDependencies : {}),
+      ...(optional ? packageJson.optionalDependencies : {}),
+      ...(peer ? packageJson.peerDependencies : {})
+    };
+
+    // Queue items are {name, spec} pairs
+    /** @type {Array<{name: string, spec: string}>} */
+    const queue = Object.entries(rootSpecs).map(([name, spec]) => ({ name, spec }));
+
+    while (queue.length > 0) {
+      const { name, spec } = /** @type {{name: string, spec: string}} */ (queue.shift());
+
+      const isWorkspaceDep = typeof spec === 'string' && spec.startsWith('workspace:');
+
+      let dep;
+      let entry;
+
+      if (isWorkspaceDep && nameToWorkspace.has(name)) {
+        // Use workspace package info
+        const wsPkg = nameToWorkspace.get(name);
+        dep = { name: wsPkg.name, version: wsPkg.version };
+        entry = this.#getYarnWorkspaceEntry(name);
+      } else if (nameToWorkspace.has(name)) {
+        // It's a workspace package referenced transitively
+        const wsPkg = nameToWorkspace.get(name);
+        dep = { name: wsPkg.name, version: wsPkg.version };
+        entry = this.#getYarnWorkspaceEntry(name);
+      } else {
+        // Regular npm dependency - use spec to find correct version
+        entry = this.#getYarnBerryEntryBySpec(name, spec);
+        if (entry) {
+          dep = { name, version: entry.version };
+        } else {
+          // Fallback to first match
+          dep = this.#findByName(name);
+          if (dep) {
+            entry = this.#getYarnBerryEntry(name, dep.version);
+          }
+        }
+      }
+
+      if (!dep) continue;
+
+      const key = `${dep.name}@${dep.version}`;
+      if (visited.has(key)) continue;
+      visited.add(key);
+
+      result.set(key, dep);
+
+      // Get transitive deps
+      if (entry) {
+        for (const [transName, transSpec] of Object.entries(entry.dependencies || {})) {
+          queue.push({ name: transName, spec: transSpec });
+        }
+        if (optional) {
+          for (const [transName, transSpec] of Object.entries(entry.optionalDependencies || {})) {
+            queue.push({ name: transName, spec: transSpec });
+          }
+        }
+      }
+    }
+
+    return new FlatlockSet(INTERNAL, result, null, null, null, this.#type);
+  }
+
+  /**
+   * Yarn classic-specific resolution with workspace support
+   *
+   * Yarn classic workspace packages are NOT in the lockfile - they're resolved
+   * from the filesystem. So when a dependency isn't found in the lockfile,
+   * we check if it's a workspace package.
+   *
+   * @param {Set<string>} seeds - Seed dependency names from package.json
+   * @param {PackageJson} packageJson - The workspace's package.json
+   * @param {{ dev: boolean, optional: boolean, peer: boolean, workspacePackages: Record<string, {name: string, version: string}> }} options
+   * @returns {FlatlockSet}
+   */
+  #dependenciesOfYarnClassic(seeds, packageJson, { dev, optional, peer, workspacePackages }) {
     /** @type {Map<string, Dependency>} */
     const result = new Map();
     /** @type {Set<string>} */
@@ -431,29 +855,33 @@ export class FlatlockSet {
     /** @type {string[]} */
     const queue = [...seeds];
 
-    // Get resolved versions from importers
-    const importer = this.#importers?.[workspacePath] || this.#importers?.['.'] || {};
-    const resolvedDeps = {
-      ...importer.dependencies,
-      ...(dev ? importer.devDependencies : {}),
-      ...(optional ? importer.optionalDependencies : {}),
-      ...(peer ? importer.peerDependencies : {})
-    };
+    // Build a map of package name -> workspace info for quick lookup
+    const nameToWorkspace = new Map();
+    for (const [wsPath, pkg] of Object.entries(workspacePackages)) {
+      nameToWorkspace.set(pkg.name, { path: wsPath, ...pkg });
+    }
 
     while (queue.length > 0) {
       const name = /** @type {string} */ (queue.shift());
       if (visited.has(name)) continue;
       visited.add(name);
 
-      // Get resolved version from importer or find in deps
-      const version = resolvedDeps[name];
       let dep;
+      let entry;
 
-      if (version) {
-        // pnpm stores version directly or as specifier
-        dep = this.get(`${name}@${version}`) || this.#findByName(name);
+      // Check if this is a workspace package
+      if (nameToWorkspace.has(name)) {
+        // Use workspace package info
+        const wsPkg = nameToWorkspace.get(name);
+        dep = { name: wsPkg.name, version: wsPkg.version };
+        // Workspace packages don't have lockfile entries in yarn classic
+        entry = null;
       } else {
+        // Regular npm dependency - find in lockfile
         dep = this.#findByName(name);
+        if (dep) {
+          entry = this.#getYarnClassicEntry(name, dep.version);
+        }
       }
 
       if (!dep) continue;
@@ -461,22 +889,98 @@ export class FlatlockSet {
       const key = `${dep.name}@${dep.version}`;
       result.set(key, dep);
 
-      // Get transitive deps
-      const pkgKey = `/${dep.name}@${dep.version}`;
-      const pkgEntry = this.#packages?.[pkgKey];
-      if (pkgEntry) {
-        for (const transName of Object.keys(pkgEntry.dependencies || {})) {
+      // Get transitive deps from lockfile entry
+      if (entry) {
+        for (const transName of Object.keys(entry.dependencies || {})) {
           if (!visited.has(transName)) queue.push(transName);
         }
         if (optional) {
-          for (const transName of Object.keys(pkgEntry.optionalDependencies || {})) {
+          for (const transName of Object.keys(entry.optionalDependencies || {})) {
+            if (!visited.has(transName)) queue.push(transName);
+          }
+        }
+        if (peer) {
+          for (const transName of Object.keys(entry.peerDependencies || {})) {
             if (!visited.has(transName)) queue.push(transName);
           }
         }
       }
     }
 
-    return new FlatlockSet(INTERNAL, result, null, null, this.#type);
+    return new FlatlockSet(INTERNAL, result, null, null, null, this.#type);
+  }
+
+  /**
+   * Find a yarn classic entry by name and version
+   * @param {string} name
+   * @param {string} version
+   * @returns {any}
+   */
+  #getYarnClassicEntry(name, version) {
+    if (!this.#packages) return null;
+    for (const [key, entry] of Object.entries(this.#packages)) {
+      if (entry.version === version) {
+        const keyName = parseYarnClassicKey(key);
+        if (keyName === name) return entry;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find a yarn berry workspace entry by package name
+   * @param {string} name
+   * @returns {any}
+   */
+  #getYarnWorkspaceEntry(name) {
+    if (!this.#packages) return null;
+    for (const [key, entry] of Object.entries(this.#packages)) {
+      if (key.includes('@workspace:') && (key.startsWith(`${name}@`) || key.includes(`/${name}@`))) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find a yarn berry npm entry by name and version
+   * @param {string} name
+   * @param {string} version
+   * @returns {any}
+   */
+  #getYarnBerryEntry(name, version) {
+    if (!this.#packages) return null;
+    // Yarn berry keys are like "@babel/types@npm:^7.24.0" and resolution is "@babel/types@npm:7.24.0"
+    for (const [key, entry] of Object.entries(this.#packages)) {
+      if (entry.version === version && key.includes(`${name}@`)) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find a yarn berry entry by spec (e.g., "npm:^3.1.0")
+   * Yarn berry keys contain the spec like "p-limit@npm:^3.1.0"
+   * @param {string} name
+   * @param {string} spec - The spec like "npm:^3.1.0" or "^3.1.0"
+   * @returns {any}
+   */
+  #getYarnBerryEntryBySpec(name, spec) {
+    if (!this.#packages || !spec) return null;
+
+    // Normalize spec - yarn specs may or may not have npm: prefix
+    // Key format: "p-limit@npm:^3.0.2, p-limit@npm:^3.1.0"
+    const normalizedSpec = spec.startsWith('npm:') ? spec : `npm:${spec}`;
+    const searchKey = `${name}@${normalizedSpec}`;
+
+    for (const [key, entry] of Object.entries(this.#packages)) {
+      // Key can have multiple specs comma-separated
+      if (key.includes(searchKey)) {
+        return entry;
+      }
+    }
+    return null;
   }
 
   /**
@@ -517,7 +1021,7 @@ export class FlatlockSet {
       }
     }
 
-    return new FlatlockSet(INTERNAL, result, null, null, this.#type);
+    return new FlatlockSet(INTERNAL, result, null, null, null, this.#type);
   }
 
   /**
@@ -553,6 +1057,14 @@ export class FlatlockSet {
       if (entry?.version) {
         return this.get(`${name}@${entry.version}`);
       }
+      // Follow workspace symlinks: link:true with resolved points to workspace
+      if (entry?.link && entry?.resolved) {
+        const workspaceEntry = this.#packages?.[entry.resolved];
+        if (workspaceEntry?.version) {
+          // Return a synthetic dependency for the workspace package
+          return { name, version: workspaceEntry.version, link: true };
+        }
+      }
     }
 
     // Fallback: iterate deps (may return arbitrary version if multiple)
@@ -580,7 +1092,16 @@ export class FlatlockSet {
           if (this.#packages[localKey]) return this.#packages[localKey];
         }
         // Fall back to hoisted
-        return this.#packages[`node_modules/${name}`] || null;
+        const hoistedKey = `node_modules/${name}`;
+        const hoistedEntry = this.#packages[hoistedKey];
+        if (hoistedEntry) {
+          // Follow workspace symlinks to get the actual package entry
+          if (hoistedEntry.link && hoistedEntry.resolved) {
+            return this.#packages[hoistedEntry.resolved] || hoistedEntry;
+          }
+          return hoistedEntry;
+        }
+        return null;
       }
       case Type.PNPM: {
         return this.#packages[`/${name}@${version}`] || null;
