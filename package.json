@@ -35,7 +35,8 @@
   },
   "main": "src/index.js",
   "bin": {
-    "flatlock-cmp": "./bin/flatlock-cmp.js"
+    "flatlock-cmp": "./bin/flatlock-cmp.js",
+    "flatlock-deps": "./bin/flatlock-deps.js"
   },
   "files": [
     "src",
