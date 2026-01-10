@@ -24,7 +24,7 @@ flatlock-deps "$ARTIFACTS/monorepo/package-lock.json" -w workspaces/arborist | s
 # Monorepo: CycloneDX extraction (for corroboration)
 cd "$ARTIFACTS/monorepo"
 npx -y @cyclonedx/cyclonedx-npm --output-format JSON --flatten-components --omit dev 2>/dev/null > "$ARTIFACTS/monorepo.cyclonedx.json" || true
-jq -r '.components[] | select(.type=="library") | if .group then .group + "/" + .name else .name end' "$ARTIFACTS/monorepo.cyclonedx.json" 2>/dev/null | sort -u > "$ARTIFACTS/monorepo.cyclonedx.txt" || true
+jq -r '.components[] | select(.type=="library") | if (.group | length) > 0 then .group + "/" + .name else .name end' "$ARTIFACTS/monorepo.cyclonedx.json" 2>/dev/null | sort -u > "$ARTIFACTS/monorepo.cyclonedx.txt" || true
 
 # Create husk (fresh install of published package)
 mkdir -p "$ARTIFACTS/husk"
@@ -38,7 +38,7 @@ flatlock-deps "$ARTIFACTS/husk/package-lock.json" | grep -v "^$PKG_NAME$" | sort
 
 # Husk: CycloneDX extraction (for corroboration)
 npx -y @cyclonedx/cyclonedx-npm --output-format JSON --flatten-components --omit dev 2>/dev/null > "$ARTIFACTS/husk.cyclonedx.json" || true
-jq -r '.components[] | select(.type=="library") | if .group then .group + "/" + .name else .name end | select(. != "'"$PKG_NAME"'")' "$ARTIFACTS/husk.cyclonedx.json" 2>/dev/null | sort -u > "$ARTIFACTS/husk.cyclonedx.txt" || true
+jq -r '.components[] | select(.type=="library") | if (.group | length) > 0 then .group + "/" + .name else .name end | select(. != "'"$PKG_NAME"'")' "$ARTIFACTS/husk.cyclonedx.json" 2>/dev/null | sort -u > "$ARTIFACTS/husk.cyclonedx.txt" || true
 
 # Compare: monorepo flatlock vs husk flatlock (primary verification)
 MISSING=$(comm -23 "$ARTIFACTS/husk.flatlock.txt" "$ARTIFACTS/monorepo.flatlock.txt" | wc -l | tr -d ' ')

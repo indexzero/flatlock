@@ -3,7 +3,7 @@
  *
  * The vessel: cyclonedx-npm -w only works with npm workspaces
  * The need: ground truth SBOM for any package
- * The way: npm install the published package, run cyclonedx on that
+ * The way: npm install the published package, run cdxgen on that
  */
 
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -45,16 +45,15 @@ export async function getGroundTruthSBOM(packageName, version) {
       throw new Error(`npm install failed: ${installResult.stderr}`);
     }
 
-    // 4. Run CycloneDX
+    // 4. Run cdxgen (CycloneDX generator)
+    const sbomPath = join(tmpDir, 'sbom.json');
     const cdxResult = await x(
       'npx',
       [
-        '@cyclonedx/cyclonedx-npm',
-        '--output-format',
-        'JSON',
-        '--flatten-components',
-        '--omit',
-        'dev'
+        '@cyclonedx/cdxgen',
+        '--required-only',
+        '-o',
+        sbomPath
       ],
       {
         nodeOptions: { cwd: tmpDir }
@@ -62,11 +61,11 @@ export async function getGroundTruthSBOM(packageName, version) {
     );
 
     if (cdxResult.exitCode !== 0) {
-      throw new Error(`CycloneDX failed: ${cdxResult.stderr}`);
+      throw new Error(`cdxgen failed: ${cdxResult.stderr}`);
     }
 
     // 5. Parse SBOM
-    const sbom = JSON.parse(cdxResult.stdout);
+    const sbom = JSON.parse(await readFile(sbomPath, 'utf8'));
     const packages = new Set();
 
     for (const component of sbom.components || []) {
