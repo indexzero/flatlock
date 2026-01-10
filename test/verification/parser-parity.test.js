@@ -13,9 +13,9 @@
  * Any difference is a parser bug in either flatlock or CycloneDX.
  */
 
-import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { getParityResults, isPlatformSpecific } from '../support/parity.js';
+import { describe, it } from 'node:test';
+import { getParityResults } from '../support/parity.js';
 
 // Test packages organized by complexity
 const TEST_PACKAGES = {
@@ -23,30 +23,26 @@ const TEST_PACKAGES = {
   simple: [
     { name: 'debug', version: '4.3.4' },
     { name: 'semver', version: '7.5.4' },
-    { name: 'ms', version: '2.1.3' },
+    { name: 'ms', version: '2.1.3' }
   ],
 
   // Tier 2: Medium packages (10-50 deps)
   medium: [
     { name: 'express', version: '4.18.2' },
-    { name: 'commander', version: '12.0.0' },
+    { name: 'commander', version: '12.0.0' }
   ],
 
   // Tier 3: Large packages (50-200 deps)
   large: [
     { name: 'eslint', version: '8.57.0' },
-    { name: '@babel/core', version: '7.24.0' },
+    { name: '@babel/core', version: '7.24.0' }
   ],
 
   // Tier 4: Very large packages (200+ deps)
-  veryLarge: [
-    { name: 'jest', version: '29.7.0' },
-  ],
+  veryLarge: [{ name: 'jest', version: '29.7.0' }],
 
   // Edge cases
-  edgeCases: [
-    { name: '@types/node', version: '20.11.0', note: 'scoped package' },
-  ]
+  edgeCases: [{ name: '@types/node', version: '20.11.0', note: 'scoped package' }]
 };
 
 /**
@@ -65,10 +61,14 @@ async function assertParity(packageName, version) {
   if (!lockfileParity.equal) {
     console.log(`    LOCKFILE PARITY FAILED:`);
     if (lockfileParity.cyclonedx.packages.length > 0) {
-      console.log(`      Only in CycloneDX: ${lockfileParity.cyclonedx.packages.slice(0, 5).join(', ')}`);
+      console.log(
+        `      Only in CycloneDX: ${lockfileParity.cyclonedx.packages.slice(0, 5).join(', ')}`
+      );
     }
     if (lockfileParity.flatlock.packages.length > 0) {
-      console.log(`      Only in Flatlock: ${lockfileParity.flatlock.packages.slice(0, 5).join(', ')}`);
+      console.log(
+        `      Only in Flatlock: ${lockfileParity.flatlock.packages.slice(0, 5).join(', ')}`
+      );
     }
   } else {
     console.log(`    Lockfile parity: PASS`);
@@ -79,10 +79,14 @@ async function assertParity(packageName, version) {
   if (!installParity.equal) {
     console.log(`    INSTALL PARITY (unexpected differences):`);
     if (installParity.cyclonedx.packages.length > 0) {
-      console.log(`      Only in CycloneDX: ${installParity.cyclonedx.packages.slice(0, 5).join(', ')}`);
+      console.log(
+        `      Only in CycloneDX: ${installParity.cyclonedx.packages.slice(0, 5).join(', ')}`
+      );
     }
     if (installParity.flatlock.packages.length > 0) {
-      console.log(`      Only in Flatlock: ${installParity.flatlock.packages.slice(0, 5).join(', ')}`);
+      console.log(
+        `      Only in Flatlock: ${installParity.flatlock.packages.slice(0, 5).join(', ')}`
+      );
     }
   } else {
     console.log(`    Install parity: PASS (after filtering platform-specific)`);
@@ -93,7 +97,7 @@ async function assertParity(packageName, version) {
     lockfileParity.equal,
     true,
     `Lockfile parity failed: CycloneDX has ${lockfileParity.cyclonedx.unexpected} extra, ` +
-    `Flatlock has ${lockfileParity.flatlock.unexpected} extra`
+      `Flatlock has ${lockfileParity.flatlock.unexpected} extra`
   );
 }
 

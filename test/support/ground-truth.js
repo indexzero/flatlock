@@ -6,9 +6,9 @@
  * The way: npm install the published package, run cyclonedx on that
  */
 
-import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { x } from 'tinyexec';
 
 /**
@@ -34,10 +34,7 @@ export async function getGroundTruthSBOM(packageName, version) {
     await writeFile(join(tmpDir, 'package.json'), JSON.stringify(pkg, null, 2));
 
     // 2. Write security config
-    await writeFile(
-      join(tmpDir, '.npmrc'),
-      'ignore-scripts=true\naudit=false\nfund=false\n'
-    );
+    await writeFile(join(tmpDir, '.npmrc'), 'ignore-scripts=true\naudit=false\nfund=false\n');
 
     // 3. npm install
     const installResult = await x('npm', ['install'], {
@@ -49,14 +46,20 @@ export async function getGroundTruthSBOM(packageName, version) {
     }
 
     // 4. Run CycloneDX
-    const cdxResult = await x('npx', [
-      '@cyclonedx/cyclonedx-npm',
-      '--output-format', 'JSON',
-      '--flatten-components',
-      '--omit', 'dev'
-    ], {
-      nodeOptions: { cwd: tmpDir }
-    });
+    const cdxResult = await x(
+      'npx',
+      [
+        '@cyclonedx/cyclonedx-npm',
+        '--output-format',
+        'JSON',
+        '--flatten-components',
+        '--omit',
+        'dev'
+      ],
+      {
+        nodeOptions: { cwd: tmpDir }
+      }
+    );
 
     if (cdxResult.exitCode !== 0) {
       throw new Error(`CycloneDX failed: ${cdxResult.stderr}`);
@@ -68,9 +71,7 @@ export async function getGroundTruthSBOM(packageName, version) {
 
     for (const component of sbom.components || []) {
       if (component.type === 'library' && component.name && component.version) {
-        const fullName = component.group
-          ? `${component.group}/${component.name}`
-          : component.name;
+        const fullName = component.group ? `${component.group}/${component.name}` : component.name;
         packages.add(`${fullName}@${component.version}`);
       }
     }
