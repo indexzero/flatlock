@@ -3,19 +3,19 @@ import { parseSyml } from '@yarnpkg/parsers';
 import yaml from 'js-yaml';
 import { detectType, Type } from './detect.js';
 import {
+  buildNpmWorkspacePackages,
+  buildPnpmWorkspacePackages,
+  buildYarnBerryWorkspacePackages,
+  extractNpmWorkspacePaths,
+  extractPnpmWorkspacePaths,
+  extractYarnBerryWorkspacePaths,
   fromPackageLock,
   fromPnpmLock,
   fromYarnBerryLock,
   fromYarnClassicLock,
   parseYarnBerryKey,
   parseYarnClassic,
-  parseYarnClassicKey,
-  extractNpmWorkspacePaths,
-  extractPnpmWorkspacePaths,
-  extractYarnBerryWorkspacePaths,
-  buildNpmWorkspacePackages,
-  buildPnpmWorkspacePackages,
-  buildYarnBerryWorkspacePackages
+  parseYarnClassicKey
 } from './parsers/index.js';
 
 /**
@@ -440,13 +440,7 @@ export class FlatlockSet {
       );
     }
 
-    const {
-      workspacePath,
-      repoDir,
-      dev = false,
-      optional = true,
-      peer = false
-    } = options;
+    const { workspacePath, repoDir, dev = false, optional = true, peer = false } = options;
 
     // Build workspacePackages if repoDir provided and not already supplied
     let { workspacePackages } = options;
@@ -980,7 +974,11 @@ export class FlatlockSet {
    * @param {{ dev: boolean, optional: boolean, peer: boolean, workspacePackages: Record<string, {name: string, version: string}> }} options
    * @returns {FlatlockSet}
    */
-  #dependenciesOfYarnClassic(seeds, _packageJson, { dev, optional, peer, workspacePackages }) {
+  #dependenciesOfYarnClassic(
+    seeds,
+    _packageJson,
+    { dev: _dev, optional, peer, workspacePackages }
+  ) {
     /** @type {Map<string, Dependency>} */
     const result = new Map();
     /** @type {Set<string>} */
