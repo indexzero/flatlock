@@ -139,7 +139,7 @@ export async function getFlatlockPackages(dir, workspace, lockfileName) {
     workspacePackages = await buildNpmWorkspacePackagesMap(dir, lockfilePath);
   }
 
-  const deps = lockfile.dependenciesOf(workspacePkg, {
+  const deps = await lockfile.dependenciesOf(workspacePkg, {
     workspacePath: workspace,
     dev: false,
     peer: true, // npm 7+ auto-installs peerDependencies, so ground truth includes them

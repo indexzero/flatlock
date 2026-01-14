@@ -11,6 +11,8 @@
  * @module flatlock/parsers/pnpm
  */
 
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import yaml from 'js-yaml';
 
 import { detectVersion } from './detect.js';
@@ -19,6 +21,16 @@ import { parseSpecV5 } from './v5.js';
 import { parseSpecV6Plus } from './v6plus.js';
 
 /** @typedef {import('../types.js').Dependency} Dependency */
+
+/**
+ * @typedef {Object} WorkspacePackage
+ * @property {string} name
+ * @property {string} version
+ * @property {Record<string, string>} [dependencies]
+ * @property {Record<string, string>} [devDependencies]
+ * @property {Record<string, string>} [optionalDependencies]
+ * @property {Record<string, string>} [peerDependencies]
+ */
 
 // Public API: detectVersion for users who need to inspect lockfile version
 export { detectVersion } from './detect.js';
@@ -286,4 +298,62 @@ export function* fromPnpmLock(input, _options = {}) {
 
   // Note: importers (workspace packages) are intentionally NOT yielded
   // flatlock only cares about external dependencies
+}
+
+/**
+ * Extract workspace paths from pnpm lockfile.
+ *
+ * pnpm stores workspace packages in the `importers` section.
+ * Each key is a workspace path relative to the repo root.
+ *
+ * @param {string | object} input - Lockfile content string or pre-parsed object
+ * @returns {string[]} Array of workspace paths (e.g., ['packages/foo', 'packages/bar'])
+ *
+ * @example
+ * extractWorkspacePaths(lockfile)
+ * // => ['packages/vue', 'packages/compiler-core', ...]
+ */
+export function extractWorkspacePaths(input) {
+  const lockfile = /** @type {Record<string, any>} */ (
+    typeof input === 'string' ? yaml.load(input) : input
+  );
+
+  const importers = lockfile.importers || {};
+  return Object.keys(importers).filter(k => k !== '.');
+}
+
+/**
+ * Build workspace packages map by reading package.json files.
+ *
+ * @param {string | object} input - Lockfile content string or pre-parsed object
+ * @param {string} repoDir - Path to repository root
+ * @returns {Promise<Record<string, WorkspacePackage>>} Map of workspace path to package info
+ *
+ * @example
+ * const workspaces = await buildWorkspacePackages(lockfile, '/path/to/repo');
+ * // => { 'packages/foo': { name: '@scope/foo', version: '1.0.0', dependencies: {...} } }
+ */
+export async function buildWorkspacePackages(input, repoDir) {
+  const paths = extractWorkspacePaths(input);
+  /** @type {Record<string, WorkspacePackage>} */
+  const workspacePackages = {};
+
+  for (const wsPath of paths) {
+    const pkgJsonPath = join(repoDir, wsPath, 'package.json');
+    try {
+      const pkg = JSON.parse(await readFile(pkgJsonPath, 'utf8'));
+      workspacePackages[wsPath] = {
+        name: pkg.name,
+        version: pkg.version || '0.0.0',
+        dependencies: pkg.dependencies,
+        devDependencies: pkg.devDependencies,
+        optionalDependencies: pkg.optionalDependencies,
+        peerDependencies: pkg.peerDependencies
+      };
+    } catch {
+      // Skip workspaces with missing or invalid package.json
+    }
+  }
+
+  return workspacePackages;
 }

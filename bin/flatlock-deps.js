@@ -13,7 +13,7 @@
 
 import { parseArgs } from 'node:util';
 import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { FlatlockSet } from '../src/set.js';
 
 const { values, positionals } = parseArgs({
@@ -57,8 +57,9 @@ try {
     const workspacePkgPath = join(repoDir, values.workspace, 'package.json');
     const workspacePkg = JSON.parse(readFileSync(workspacePkgPath, 'utf8'));
 
-    const deps = lockfile.dependenciesOf(workspacePkg, {
+    const deps = await lockfile.dependenciesOf(workspacePkg, {
       workspacePath: values.workspace,
+      repoDir,
       dev: values.dev,
       peer: values.peer
     });

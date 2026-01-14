@@ -98,7 +98,7 @@ for (const c of sbom.components || []) {
 
 // Flatlock
 const lockfile = await FlatlockSet.fromPath('./' + lockfileName);
-const deps = lockfile.dependenciesOf(pkg, { workspacePath: '$WORKSPACE', dev: false });
+const deps = await lockfile.dependenciesOf(pkg, { workspacePath: '$WORKSPACE', dev: false });
 const flSet = new Set([...deps].map(d => d.name + '@' + d.version));
 
 // Compare

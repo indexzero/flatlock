@@ -1,4 +1,17 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 /** @typedef {import('./types.js').Dependency} Dependency */
+
+/**
+ * @typedef {Object} WorkspacePackage
+ * @property {string} name
+ * @property {string} version
+ * @property {Record<string, string>} [dependencies]
+ * @property {Record<string, string>} [devDependencies]
+ * @property {Record<string, string>} [optionalDependencies]
+ * @property {Record<string, string>} [peerDependencies]
+ */
 
 /**
  * LIMITATION: Workspace symlinks are not yielded
@@ -140,4 +153,73 @@ export function* fromPackageLock(input, _options = {}) {
       yield dep;
     }
   }
+}
+
+/**
+ * Extract workspace paths from npm lockfile.
+ *
+ * npm workspace packages are entries in `packages` that:
+ * - Are not the root ('')
+ * - Don't contain 'node_modules/' (those are installed deps)
+ * - Have a version field
+ *
+ * @param {string | object} input - Lockfile content string or pre-parsed object
+ * @returns {string[]} Array of workspace paths (e.g., ['workspaces/arborist', 'workspaces/libnpmfund'])
+ *
+ * @example
+ * extractWorkspacePaths(lockfile)
+ * // => ['workspaces/arborist', 'workspaces/libnpmfund', ...]
+ */
+export function extractWorkspacePaths(input) {
+  const lockfile = typeof input === 'string' ? JSON.parse(input) : input;
+  const packages = lockfile.packages || {};
+  const paths = [];
+
+  for (const [path, pkg] of Object.entries(packages)) {
+    // Skip root and node_modules entries
+    if (path === '' || path.includes('node_modules')) continue;
+
+    // Workspace entries have a version
+    if (pkg.version) {
+      paths.push(path);
+    }
+  }
+
+  return paths;
+}
+
+/**
+ * Build workspace packages map by reading package.json files.
+ *
+ * @param {string | object} input - Lockfile content string or pre-parsed object
+ * @param {string} repoDir - Path to repository root
+ * @returns {Promise<Record<string, WorkspacePackage>>} Map of workspace path to package info
+ *
+ * @example
+ * const workspaces = await buildWorkspacePackages(lockfile, '/path/to/repo');
+ * // => { 'workspaces/arborist': { name: '@npmcli/arborist', version: '1.0.0', dependencies: {...} } }
+ */
+export async function buildWorkspacePackages(input, repoDir) {
+  const paths = extractWorkspacePaths(input);
+  /** @type {Record<string, WorkspacePackage>} */
+  const workspacePackages = {};
+
+  for (const wsPath of paths) {
+    const pkgJsonPath = join(repoDir, wsPath, 'package.json');
+    try {
+      const pkg = JSON.parse(await readFile(pkgJsonPath, 'utf8'));
+      workspacePackages[wsPath] = {
+        name: pkg.name,
+        version: pkg.version || '0.0.0',
+        dependencies: pkg.dependencies,
+        devDependencies: pkg.devDependencies,
+        optionalDependencies: pkg.optionalDependencies,
+        peerDependencies: pkg.peerDependencies
+      };
+    } catch {
+      // Skip workspaces with missing or invalid package.json
+    }
+  }
+
+  return workspacePackages;
 }

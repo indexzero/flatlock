@@ -54,13 +54,13 @@ console.log('Count:', packages.size);
 # 6. Flatlock
 echo ""
 echo "Flatlock packages:"
-node -e "
+node --input-type=module -e "
 import { FlatlockSet } from '$PWD/../../../src/set.js';
 import { readFileSync } from 'fs';
 
 const lockfile = await FlatlockSet.fromPath('./package-lock.json');
 const pkg = JSON.parse(readFileSync('./$WORKSPACE/package.json', 'utf8'));
-const deps = lockfile.dependenciesOf(pkg, { workspacePath: '$WORKSPACE', dev: false });
+const deps = await lockfile.dependenciesOf(pkg, { workspacePath: '$WORKSPACE', repoDir: '.', dev: false });
 console.log('Count:', deps.size);
 [...deps].map(d => d.name + '@' + d.version).sort().forEach(p => console.log('  ' + p));
 "
