@@ -1,0 +1,162 @@
+name: flatlock-release
+run-name: >
+  (#${{ github.run_number }}) flatlock release v${{ inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+          - os: macos-15
+            platform: darwin
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@df199fb7be9f65074067a9eb93f12bb4c5547cf2 # v2.13.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: step-security/action-setup@3d419c73e38e670dbffe349ffff26dd13c164640 # v4.2.0
+        with:
+          version: '10'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build standalone binary
+        run: |
+          chmod +x ./bin/ncc.sh
+          pnpm run build:ncc
+
+      - name: Rename binaries with platform suffix
+        run: |
+          mv ncc/flatlock ncc/flatlock-${{ matrix.platform }}-${{ matrix.arch }}
+          mv ncc/flatcover ncc/flatcover-${{ matrix.platform }}-${{ matrix.arch }}
+
+      - name: Upload flatlock artifact
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: flatlock-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ncc/flatlock-${{ matrix.platform }}-${{ matrix.arch }}
+
+      - name: Upload flatcover artifact
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: flatcover-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ncc/flatcover-${{ matrix.platform }}-${{ matrix.arch }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@df199fb7be9f65074067a9eb93f12bb4c5547cf2 # v2.13.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          path: binaries
+          merge-multiple: true
+
+      - name: Make binaries executable
+        run: chmod +x binaries/*
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
+        with:
+          tag_name: v${{ inputs.version }}
+          name: flatlock v${{ inputs.version }}
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: true
+          files: |
+            binaries/flatlock-linux-x64
+            binaries/flatlock-darwin-arm64
+            binaries/flatcover-linux-x64
+            binaries/flatcover-darwin-arm64
+          body: |
+            ## flatlock v${{ inputs.version }}
+
+            The Matlock of lockfile parsers - extracts packages without building dependency graphs.
+
+            ### Binaries
+
+            | Binary | Description |
+            |--------|-------------|
+            | `flatlock` | Extract packages from lockfiles |
+            | `flatcover` | Check package coverage against a registry |
+
+            ### Installation
+
+            Download the appropriate binary for your platform and add it to your PATH:
+
+            ```bash
+            # Linux (x64)
+            curl -L -o flatlock https://github.com/${{ github.repository }}/releases/download/v${{ inputs.version }}/flatlock-linux-x64
+            curl -L -o flatcover https://github.com/${{ github.repository }}/releases/download/v${{ inputs.version }}/flatcover-linux-x64
+            chmod +x flatlock flatcover
+            mv flatlock flatcover /usr/local/bin/
+
+            # macOS (Apple Silicon)
+            curl -L -o flatlock https://github.com/${{ github.repository }}/releases/download/v${{ inputs.version }}/flatlock-darwin-arm64
+            curl -L -o flatcover https://github.com/${{ github.repository }}/releases/download/v${{ inputs.version }}/flatcover-darwin-arm64
+            chmod +x flatlock flatcover
+            mv flatlock flatcover /usr/local/bin/
+            ```
+
+            ### Usage
+
+            ```bash
+            # Extract packages from lockfile
+            flatlock package-lock.json
+            flatlock pnpm-lock.yaml --specs --json
+
+            # Check coverage against a registry
+            flatcover pnpm-lock.yaml --cover --summary
+            flatcover pnpm-lock.yaml --cover --registry https://npm.pkg.github.com --token ghp_xxx
+            ```
+
+            See the [README](https://github.com/${{ github.repository }}#readme) for full documentation.
