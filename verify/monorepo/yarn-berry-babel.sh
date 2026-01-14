@@ -19,17 +19,8 @@ PKG_NAME=$(jq -r .name "$ARTIFACTS/monorepo/$WORKSPACE/package.json")
 PKG_VERSION=$(jq -r .version "$ARTIFACTS/monorepo/$WORKSPACE/package.json")
 echo "$PKG_NAME@$PKG_VERSION" > "$ARTIFACTS/package.txt"
 
-# Extract workspace scope (e.g., @babel from @babel/parser)
-PKG_SCOPE="${PKG_NAME%/*}"
-
-# Platform filter - removes OS-specific packages
-platform_filter() { grep -Ev '^(@esbuild/|@swc/|@rollup/rollup-|fsevents)' || true; }
-
-# Workspace filter - removes internal workspace packages (expected to differ)
-workspace_filter() { grep -Ev "^${PKG_SCOPE}/" || true; }
-
 # Monorepo: flatlock extraction
-flatlock-deps "$ARTIFACTS/monorepo/yarn.lock" -w "$WORKSPACE" | platform_filter | sort -u > "$ARTIFACTS/monorepo.flatlock.txt"
+flatlock-deps "$ARTIFACTS/monorepo/yarn.lock" -w "$WORKSPACE" | sort -u > "$ARTIFACTS/monorepo.flatlock.txt"
 
 # Create husk (fresh install of published package)
 mkdir -p "$ARTIFACTS/husk"
@@ -66,13 +57,13 @@ if ! grep -q "^__metadata:" yarn.lock; then
   exit 1
 fi
 
-# Husk: flatlock extraction (exclude root package and workspace packages)
-flatlock-deps "$ARTIFACTS/husk/yarn.lock" | grep -v "^$PKG_NAME$" | workspace_filter | platform_filter | sort -u > "$ARTIFACTS/husk.flatlock.txt"
+# Husk: flatlock extraction (exclude root package)
+flatlock-deps "$ARTIFACTS/husk/yarn.lock" | grep -v "^$PKG_NAME$" | sort -u > "$ARTIFACTS/husk.flatlock.txt"
 
 # Husk: SBOM ground truth (cdxgen - universal CycloneDX generator)
 yarn dlx @cyclonedx/cdxgen --required-only -o "$ARTIFACTS/husk.sbom.json" 2>/dev/null || true
 if [ -f "$ARTIFACTS/husk.sbom.json" ]; then
-  jq -r '.components[] | select(.type=="library") | if (.group | length) > 0 then "\(.group)/\(.name)" else .name end' "$ARTIFACTS/husk.sbom.json" | grep -v "^$PKG_NAME$" | workspace_filter | platform_filter | sort -u > "$ARTIFACTS/husk.sbom.txt"
+  jq -r '.components[] | select(.type=="library") | if (.group | length) > 0 then "\(.group)/\(.name)" else .name end' "$ARTIFACTS/husk.sbom.json" | grep -v "^$PKG_NAME$" | sort -u > "$ARTIFACTS/husk.sbom.txt"
 fi
 
 # Compare

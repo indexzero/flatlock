@@ -9,7 +9,13 @@ import {
   fromYarnClassicLock,
   parseYarnBerryKey,
   parseYarnClassic,
-  parseYarnClassicKey
+  parseYarnClassicKey,
+  extractNpmWorkspacePaths,
+  extractPnpmWorkspacePaths,
+  extractYarnBerryWorkspacePaths,
+  buildNpmWorkspacePackages,
+  buildPnpmWorkspacePackages,
+  buildYarnBerryWorkspacePackages
 } from './parsers/index.js';
 
 /**
@@ -21,15 +27,20 @@ import {
  * @typedef {Object} WorkspacePackage
  * @property {string} name - Package name (e.g., '@vue/shared')
  * @property {string} version - Package version (e.g., '3.5.26')
+ * @property {Record<string, string>} [dependencies] - Production dependencies (for yarn berry workspace traversal)
+ * @property {Record<string, string>} [devDependencies] - Dev dependencies
+ * @property {Record<string, string>} [optionalDependencies] - Optional dependencies
+ * @property {Record<string, string>} [peerDependencies] - Peer dependencies
  */
 
 /**
  * @typedef {Object} DependenciesOfOptions
  * @property {string} [workspacePath] - Path to workspace (e.g., 'packages/foo')
+ * @property {string} [repoDir] - Path to repository root for reading workspace package.json files
  * @property {boolean} [dev=false] - Include devDependencies
  * @property {boolean} [optional=true] - Include optionalDependencies
  * @property {boolean} [peer=false] - Include peerDependencies (default false: peers are provided by consumer)
- * @property {Record<string, WorkspacePackage>} [workspacePackages] - Map of workspace path to package info for resolving workspace links
+ * @property {Record<string, WorkspacePackage>} [workspacePackages] - Map of workspace path to package info for resolving workspace links (auto-built if repoDir provided)
  */
 
 /**
@@ -75,7 +86,7 @@ const INTERNAL = Symbol('FlatlockSet.internal');
  *
  * // Get dependencies for a specific workspace
  * const pkg = JSON.parse(await readFile('./packages/foo/package.json'));
- * const subset = set.dependenciesOf(pkg, { workspacePath: 'packages/foo' });
+ * const subset = await set.dependenciesOf(pkg, { workspacePath: 'packages/foo', repoDir: '.' });
  *
  * // Set operations
  * const other = await FlatlockSet.fromPath('./other-lock.json');
@@ -232,6 +243,42 @@ export class FlatlockSet {
   }
 
   /**
+   * Get workspace paths from lockfile.
+   * Supports npm, pnpm, and yarn berry lockfiles.
+   * @returns {string[]} Array of workspace paths (e.g., ['packages/foo', 'packages/bar'])
+   */
+  getWorkspacePaths() {
+    switch (this.#type) {
+      case Type.NPM:
+        return extractNpmWorkspacePaths(this.#packages ? { packages: this.#packages } : {});
+      case Type.PNPM:
+        return extractPnpmWorkspacePaths(this.#importers ? { importers: this.#importers } : {});
+      case Type.YARN_BERRY:
+        return extractYarnBerryWorkspacePaths(this.#packages || {});
+      default:
+        return [];
+    }
+  }
+
+  /**
+   * Build workspace packages map by reading package.json files.
+   * @param {string} repoDir - Path to repository root
+   * @returns {Promise<Record<string, WorkspacePackage>>}
+   */
+  async #buildWorkspacePackages(repoDir) {
+    switch (this.#type) {
+      case Type.NPM:
+        return buildNpmWorkspacePackages({ packages: this.#packages || {} }, repoDir);
+      case Type.PNPM:
+        return buildPnpmWorkspacePackages({ importers: this.#importers || {} }, repoDir);
+      case Type.YARN_BERRY:
+        return buildYarnBerryWorkspacePackages(this.#packages || {}, repoDir);
+      default:
+        return {};
+    }
+  }
+
+  /**
    * Check if a dependency exists
    * @param {string} nameAtVersion - e.g., "lodash@4.17.21"
    * @returns {boolean}
@@ -361,7 +408,7 @@ export class FlatlockSet {
   /**
    * Get transitive dependencies of a package.json
    *
-   * For monorepos, provide workspacePath to get correct resolution.
+   * For monorepos, provide workspacePath and repoDir to get correct resolution.
    * Without workspacePath, assumes root package (hoisted deps only).
    *
    * NOTE: This method is only available on sets created directly from
@@ -370,10 +417,17 @@ export class FlatlockSet {
    *
    * @param {PackageJson} packageJson - Parsed package.json
    * @param {DependenciesOfOptions} [options]
-   * @returns {FlatlockSet}
+   * @returns {Promise<FlatlockSet>}
    * @throws {Error} If called on a set that cannot traverse
+   *
+   * @example
+   * // Simple usage with repoDir (recommended)
+   * const deps = await lockfile.dependenciesOf(pkg, {
+   *   workspacePath: 'packages/foo',
+   *   repoDir: '/path/to/repo'
+   * });
    */
-  dependenciesOf(packageJson, options = {}) {
+  async dependenciesOf(packageJson, options = {}) {
     if (!packageJson || typeof packageJson !== 'object') {
       throw new TypeError('packageJson must be a non-null object');
     }
@@ -388,11 +442,17 @@ export class FlatlockSet {
 
     const {
       workspacePath,
+      repoDir,
       dev = false,
       optional = true,
-      peer = false,
-      workspacePackages
+      peer = false
     } = options;
+
+    // Build workspacePackages if repoDir provided and not already supplied
+    let { workspacePackages } = options;
+    if (!workspacePackages && repoDir && workspacePath) {
+      workspacePackages = await this.#buildWorkspacePackages(repoDir);
+    }
 
     // Collect seed dependencies from package.json
     const seeds = this.#collectSeeds(packageJson, { dev, optional, peer });
@@ -876,7 +936,24 @@ export class FlatlockSet {
       result.set(key, dep);
 
       // Get transitive deps
-      if (entry) {
+      // For workspace packages, ALWAYS use workspacePackages dependencies (from package.json)
+      // instead of lockfile entry (which merges prod + dev deps).
+      // Even if the workspace has no deps (null/empty), we should NOT fall back to lockfile.
+      const wsInfo = nameToWorkspace.get(name);
+
+      if (wsInfo) {
+        // This is a workspace package - use package.json deps (respects prod/dev separation)
+        const depsToTraverse = {
+          ...(wsInfo.dependencies || {}),
+          ...(dev ? wsInfo.devDependencies || {} : {}),
+          ...(optional ? wsInfo.optionalDependencies || {} : {}),
+          ...(peer ? wsInfo.peerDependencies || {} : {})
+        };
+        for (const [transName, transSpec] of Object.entries(depsToTraverse)) {
+          queue.push({ name: transName, spec: transSpec });
+        }
+      } else if (entry) {
+        // Non-workspace package - use lockfile entry
         for (const [transName, transSpec] of Object.entries(entry.dependencies || {})) {
           queue.push({ name: transName, spec: transSpec });
         }

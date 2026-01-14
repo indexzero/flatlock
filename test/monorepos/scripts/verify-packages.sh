@@ -91,7 +91,7 @@ for (const c of sbom.components || []) {
 // Flatlock: package NAMES only
 const lockfile = await FlatlockSet.fromPath('$SOURCE_DIR/$LOCKFILE');
 const pkg = JSON.parse(readFileSync('$SOURCE_DIR/$WORKSPACE/package.json', 'utf8'));
-const deps = lockfile.dependenciesOf(pkg, { workspacePath: '$WORKSPACE', dev: false });
+const deps = await lockfile.dependenciesOf(pkg, { workspacePath: '$WORKSPACE', repoDir: '$SOURCE_DIR', dev: false });
 const flNames = new Set([...deps].map(d => d.name));
 
 // Compare NAMES

@@ -393,37 +393,37 @@ describe('FlatlockSet', () => {
   });
 
   describe('dependenciesOf', () => {
-    test('throws on null packageJson', () => {
+    test('rejects on null packageJson', async () => {
       const content = loadFixture('npm/package-lock.json.v2');
       const set = FlatlockSet.fromString(content, { path: 'package-lock.json' });
 
-      assert.throws(() => set.dependenciesOf(null), {
+      await assert.rejects(async () => set.dependenciesOf(null), {
         name: 'TypeError',
         message: 'packageJson must be a non-null object'
       });
     });
 
-    test('throws on undefined packageJson', () => {
+    test('rejects on undefined packageJson', async () => {
       const content = loadFixture('npm/package-lock.json.v2');
       const set = FlatlockSet.fromString(content, { path: 'package-lock.json' });
 
-      assert.throws(() => set.dependenciesOf(undefined), {
+      await assert.rejects(async () => set.dependenciesOf(undefined), {
         name: 'TypeError',
         message: 'packageJson must be a non-null object'
       });
     });
 
-    test('throws on primitive packageJson', () => {
+    test('rejects on primitive packageJson', async () => {
       const content = loadFixture('npm/package-lock.json.v2');
       const set = FlatlockSet.fromString(content, { path: 'package-lock.json' });
 
-      assert.throws(() => set.dependenciesOf('string'), {
+      await assert.rejects(async () => set.dependenciesOf('string'), {
         name: 'TypeError',
         message: 'packageJson must be a non-null object'
       });
     });
 
-    test('throws on sets from set operations', () => {
+    test('rejects on sets from set operations', async () => {
       const content1 = loadFixture('npm/package-lock.json.v3');
       const content2 = loadFixture('pnpm/pnpm-lock.yaml.v9');
 
@@ -432,12 +432,12 @@ describe('FlatlockSet', () => {
 
       const union = set1.union(set2);
 
-      assert.throws(() => union.dependenciesOf({ dependencies: {} }), {
+      await assert.rejects(async () => union.dependenciesOf({ dependencies: {} }), {
         message: /dependenciesOf\(\) requires lockfile data/
       });
     });
 
-    test('returns subset for basic dependencies', () => {
+    test('returns subset for basic dependencies', async () => {
       const content = loadFixture('npm/package-lock.json.v2');
       const set = FlatlockSet.fromString(content, { path: 'package-lock.json' });
 
@@ -449,13 +449,13 @@ describe('FlatlockSet', () => {
         }
       };
 
-      const subset = set.dependenciesOf(packageJson);
+      const subset = await set.dependenciesOf(packageJson);
 
       assert.ok(subset.size >= 1, 'should have at least the direct dependency');
       assert.strictEqual(subset.canTraverse, false, 'result should not be traversable');
     });
 
-    test('respects dev option', () => {
+    test('respects dev option', async () => {
       const content = loadFixture('npm/package-lock.json.v2');
       const set = FlatlockSet.fromString(content, { path: 'package-lock.json' });
 
@@ -469,17 +469,17 @@ describe('FlatlockSet', () => {
         };
 
         // Without dev
-        const withoutDev = set.dependenciesOf(packageJson, { dev: false });
+        const withoutDev = await set.dependenciesOf(packageJson, { dev: false });
 
         // With dev
-        const withDev = set.dependenciesOf(packageJson, { dev: true });
+        const withDev = await set.dependenciesOf(packageJson, { dev: true });
 
         // With dev should have at least as many deps (may have same deps if transitive)
         assert.ok(withDev.size >= withoutDev.size);
       }
     });
 
-    test('respects optional option', () => {
+    test('respects optional option', async () => {
       const content = loadFixture('npm/package-lock.json.v2');
       const set = FlatlockSet.fromString(content, { path: 'package-lock.json' });
 
@@ -493,16 +493,16 @@ describe('FlatlockSet', () => {
         };
 
         // optional defaults to true
-        const withOptional = set.dependenciesOf(packageJson);
+        const withOptional = await set.dependenciesOf(packageJson);
 
         // Explicitly without optional
-        const withoutOptional = set.dependenciesOf(packageJson, { optional: false });
+        const withoutOptional = await set.dependenciesOf(packageJson, { optional: false });
 
         assert.ok(withOptional.size >= withoutOptional.size);
       }
     });
 
-    test('respects peer option', () => {
+    test('respects peer option', async () => {
       const content = loadFixture('npm/package-lock.json.v2');
       const set = FlatlockSet.fromString(content, { path: 'package-lock.json' });
 
@@ -516,16 +516,16 @@ describe('FlatlockSet', () => {
         };
 
         // peer defaults to false
-        const withoutPeer = set.dependenciesOf(packageJson);
+        const withoutPeer = await set.dependenciesOf(packageJson);
 
         // With peer
-        const withPeer = set.dependenciesOf(packageJson, { peer: true });
+        const withPeer = await set.dependenciesOf(packageJson, { peer: true });
 
         assert.ok(withPeer.size >= withoutPeer.size);
       }
     });
 
-    test('handles empty dependencies', () => {
+    test('handles empty dependencies', async () => {
       const content = loadFixture('npm/package-lock.json.v2');
       const set = FlatlockSet.fromString(content, { path: 'package-lock.json' });
 
@@ -533,7 +533,7 @@ describe('FlatlockSet', () => {
         dependencies: {}
       };
 
-      const subset = set.dependenciesOf(packageJson);
+      const subset = await set.dependenciesOf(packageJson);
       assert.strictEqual(subset.size, 0);
     });
   });

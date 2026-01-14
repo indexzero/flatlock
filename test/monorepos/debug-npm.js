@@ -57,7 +57,7 @@ console.log('socket.io-parser ->', nameToWorkspace.get('socket.io-parser'));
 
 console.log('\n=== dependenciesOf ===');
 const flatlockSet = await FlatlockSet.fromPath(lockfilePath);
-const deps = flatlockSet.dependenciesOf(workspacePkg, {
+const deps = await flatlockSet.dependenciesOf(workspacePkg, {
   workspacePath: workspace,
   dev: false,
   peer: true,
