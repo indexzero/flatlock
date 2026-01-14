@@ -980,7 +980,7 @@ export class FlatlockSet {
    * @param {{ dev: boolean, optional: boolean, peer: boolean, workspacePackages: Record<string, {name: string, version: string}> }} options
    * @returns {FlatlockSet}
    */
-  #dependenciesOfYarnClassic(seeds, _packageJson, { dev, optional, peer, workspacePackages }) {
+  #dependenciesOfYarnClassic(seeds, _packageJson, { dev: _dev, optional, peer, workspacePackages }) {
     /** @type {Map<string, Dependency>} */
     const result = new Map();
     /** @type {Set<string>} */
