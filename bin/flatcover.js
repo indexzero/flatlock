@@ -189,7 +189,8 @@ async function* checkCoverage(deps, { registry, auth, token, progress }) {
     const results = await Promise.all(
       batch.map(async ([name, versions]) => {
         const encodedName = encodePackageName(name);
-        const path = `/${encodedName}`;
+        const basePath = baseUrl.pathname.replace(/\/$/, '');
+        const path = `${basePath}/${encodedName}`;
 
         try {
           const response = await client.request({
