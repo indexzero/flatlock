@@ -38,6 +38,29 @@ for await (const pkg of flatlock.fromPath('./package-lock.json')) {
 - **yarn classic**: yarn.lock v1
 - **yarn berry**: yarn.lock v2+
 
+## CLI Tools
+
+Three command-line tools are included for common workflows:
+
+```bash
+# Extract dependencies from any lockfile
+npx flatlock package-lock.json --specs --json
+
+# Verify parser accuracy against official tools
+npx flatlock-cmp --dir ./fixtures --glob "**/*lock*"
+
+# Check registry availability of all dependencies
+npx flatcover package-lock.json --summary
+```
+
+| Command | Purpose |
+|---------|---------|
+| `flatlock` | Extract dependencies as plain text, JSON, or NDJSON |
+| `flatlock-cmp` | Compare output against @npmcli/arborist, @yarnpkg/lockfile, @pnpm/lockfile.fs |
+| `flatcover` | Verify packages exist on registry (useful for private registry migrations) |
+
+Run any command with `--help` for full options.
+
 ## API
 
 ```javascript
@@ -142,6 +165,23 @@ console.log(`${pkg.name} has ${subset.size} production dependencies`);
 ```
 
 **Note:** Sets created via `union()`, `intersection()`, or `difference()` cannot use `dependenciesOf()` because they lack the raw lockfile data needed for traversal. Check `set.canTraverse` before calling.
+
+## Compare API
+
+Verify flatlock output against official package manager parsers:
+
+```javascript
+// Both import styles work - use whichever you prefer
+import { compare } from 'flatlock';
+import { compare } from 'flatlock/compare';
+
+const result = await compare('./package-lock.json');
+console.log(result.equinumerous);  // true if counts match
+console.log(result.flatlockCount); // packages found by flatlock
+console.log(result.comparisonCount); // packages found by official parser
+```
+
+The dedicated `flatlock/compare` entry point exists for tools that want explicit imports, but the main export works identically.
 
 ## License
 

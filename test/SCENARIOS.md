@@ -410,8 +410,6 @@ flatlock processes BOTH sections for complete SBOM coverage, with deduplication 
 
 ### pnpm-05: Importers Filtering
 
-**NOT TESTED** - needs test coverage
-
 The `importers` section lists workspace packages that consume dependencies:
 
 ```yaml
@@ -909,8 +907,7 @@ Edge cases: `@scope` alone (invalid), `@@double` (invalid), `@scope/name/extra` 
 | Scenario | Status | Primary Test File |
 |----------|--------|-------------------|
 | npm-01 to npm-06 | Tested | `test/parsers/npm.test.js` |
-| pnpm-01 to pnpm-04 | Tested | `test/parsers/pnpm.test.js` |
-| pnpm-05 | Placeholder | `test/parsers/pnpm.test.js` |
+| pnpm-01 to pnpm-05 | Tested | `test/parsers/pnpm.test.js` |
 | yarn-classic-01 to yarn-classic-03 | Tested | `test/parsers/yarn-classic.test.js`, `test/accuracy.test.js` |
 | yarn-berry-01 to yarn-berry-07 | Tested | `test/parsers/yarn-berry.test.js` |
 | cross-01 | Tested | `test/lockfile.test.js` |

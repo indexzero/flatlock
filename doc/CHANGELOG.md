@@ -7,9 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🆕 Added
+- `repoDir` option for `dependenciesOf()`
+  ```javascript
+  const deps = await lockfile.dependenciesOf(pkg, {
+    workspacePath: 'packages/vue',
+    repoDir: '.'
+  });
+  ```
+- pnpm v9 `snapshots` section parsing
+- CLI: `flatlock` (extract), `flatlock-cmp` (verify), `flatcover` (registry check)
+- ncc build workflow for standalone binaries
+
+### 🚧 Changed
+- **Breaking**: `dependenciesOf()` is now async
+- Rename `bin/flatlock-deps.js` to `bin/flatlock.js`
+
+### 🐞 Fixed
+- yarn-berry: separate prod/dev traversal (was merging both)
+- pnpm v9: include snapshots in traversal (was packages only)
+
+## 🤝 Contributors
+
+- @ppalucha - `fix(flatcover): respect registry URL path when fetching packages` (#7)
+
 ## [1.2.0] - 2025-01-05
 
-### Added
+### 🆕 Added
 - **`FlatlockSet` class** for Set-like operations on lockfile dependencies
   - Factory methods: `fromPath()`, `fromString()`
   - Set operations: `union()`, `intersection()`, `difference()`
@@ -25,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Test reorganization**: per-parser test files, `test/SCENARIOS.md` documenting test coverage
 - Export `parseYarnClassic` function for standardized yarn classic lockfile parsing
 
-### Changed
+### 🚧 Changed
 - **Breaking**: Node.js 22+ required (dropped v20 support)
 - **Breaking**: Rename `identical` to `equinumerous` in comparison results (set-theoretic terminology)
 - CI matrix updated to test Node.js 22 and 24 on x64 and arm64
@@ -33,30 +57,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Consolidate `Dependency` type definition into `src/parsers/types.js`
 - Standardize `@yarnpkg/lockfile` parse function access across all modules via `parseYarnClassic`
 
-### Fixed
+### 🐞 Fixed
 - Fix `collect()` path detection for YAML lockfile content (was incorrectly treating YAML as a path)
 
 ## [1.1.0] - 2025-12-16
 
-### Added
+### 🆕 Added
 - Separate export path `flatlock/compare` for comparison utilities
 - Export lockfile key parsing utilities: `parseNpmKey`, `parsePnpmKey`, `parseYarnClassicKey`, `parseYarnBerryKey` for advanced use cases
 - TypeScript type declarations with proper JSDoc annotations for all public APIs
 
-### Changed
-- **Breaking**: `compare()` and `compareAll()` are no longer exported from main entry point - import from `flatlock/compare` instead
+### 🚧 Changed
 - **Breaking (internal)**: Normalize parser function naming to `parseLockfileKey` across all parser modules for consistency
 - Move `@npmcli/arborist` from devDependencies to optionalDependencies (only needed for `flatlock/compare`)
 - Refactor `flatlock-cmp` CLI to use extracted comparison logic from `src/compare.js`
 - Replace `npm run` with `pnpm run` in package.json scripts
 
-### Removed
+### 🗑️ Removed
 - Remove `src/support.js` - functionality consolidated into individual parser modules for better maintainability
 - Remove dynamic import and lazy-loading pattern for Arborist (now static import in separate entry point)
 
 ## [1.0.1] - 2025-12-11
 
-### Fixed
+### 🐞 Fixed
 - Fix broken GitHub URLs in package.json (homepage, repository, bugs) and README.md image path
 - Correct relative URLs that would fail when package is published to npm registry
 
@@ -64,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release of flatlock - the Matlock of lockfile parsers.
 
-### Added
+### 🆕 Added
 - **Core functionality**: Extract package dependencies from npm, yarn (classic + berry), and pnpm lockfiles without building dependency graphs
 - **Generator-based streaming API** for memory-efficient processing of large lockfiles via `fromPath()`, `fromString()`, and format-specific functions
 - **Multi-format support**:
@@ -78,14 +101,15 @@ Initial release of flatlock - the Matlock of lockfile parsers.
 - **Security hardening**: Resistance to spoofing attacks (e.g., malicious packages using `__metadata` in name strings to mimic lockfile structure)
 - **Helper functions**: `collect()` to materialize all packages into an array, `tryFromPath()` and `tryFromString()` for Result-based error handling
 
-### Changed
+### 🚧 Changed
 - **Semantic filtering**: Yield only external dependencies, automatically skipping workspace packages, local file references (`file:`, `link:`), and symlinks to focus on registry-published dependencies
 
-### Notes
+### 📝 Notes
 - Designed for use cases that need package enumeration without dependency resolution: SBOM generation, vulnerability scanning, license compliance, integrity verification
 - For full dependency tree analysis ("why is X installed?"), use `@npmcli/arborist` instead
 
-[unreleased]: https://github.com/indexzero/flatlock/compare/1.2.0...HEAD
+[unreleased]: https://github.com/indexzero/flatlock/compare/1.3.0...HEAD
+[1.3.0]: https://github.com/indexzero/flatlock/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/indexzero/flatlock/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/indexzero/flatlock/compare/1.0.0...1.1.0
 [1.0.1]: https://github.com/indexzero/flatlock/compare/1.0.0...1.0.1
