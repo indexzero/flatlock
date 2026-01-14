@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * flatlock-deps - Get dependencies from a lockfile
+ * flatlock - Get dependencies from a lockfile
  *
  * For monorepo workspaces, outputs the production dependencies of a workspace.
  * For standalone packages, outputs all production dependencies.
  *
  * Usage:
- *   flatlock-deps <lockfile>                           # all deps
- *   flatlock-deps <lockfile> --workspace <path>        # workspace deps
- *   flatlock-deps <lockfile> -w workspaces/arborist    # short form
+ *   flatlock <lockfile>                           # all deps
+ *   flatlock <lockfile> --workspace <path>        # workspace deps
+ *   flatlock <lockfile> -w workspaces/arborist    # short form
  */
 
 import { parseArgs } from 'node:util';
@@ -27,11 +27,11 @@ const { values, positionals } = parseArgs({
 });
 
 if (values.help || positionals.length === 0) {
-  console.log(`flatlock-deps - Get dependencies from a lockfile
+  console.log(`flatlock - Get dependencies from a lockfile
 
 Usage:
-  flatlock-deps <lockfile>
-  flatlock-deps <lockfile> --workspace <path>
+  flatlock <lockfile>
+  flatlock <lockfile> --workspace <path>
 
 Options:
   -w, --workspace <path>  Workspace path within monorepo
@@ -40,9 +40,9 @@ Options:
   -h, --help              Show this help
 
 Examples:
-  flatlock-deps package-lock.json
-  flatlock-deps package-lock.json -w workspaces/arborist
-  flatlock-deps pnpm-lock.yaml --workspace packages/core`);
+  flatlock package-lock.json
+  flatlock package-lock.json -w workspaces/arborist
+  flatlock pnpm-lock.yaml --workspace packages/core`);
   process.exit(values.help ? 0 : 1);
 }
 

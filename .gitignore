@@ -157,3 +157,6 @@ bin/tmp/
 # Spec files
 PLAN.md
 IMPLEMENTATION.md
+
+# ncc build artifacts
+ncc/

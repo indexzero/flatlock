@@ -35,8 +35,8 @@
   },
   "main": "src/index.js",
   "bin": {
-    "flatlock-cmp": "./bin/flatlock-cmp.js",
-    "flatlock-deps": "./bin/flatlock-deps.js"
+    "flatlock": "./bin/flatlock.js",
+    "flatlock-cmp": "./bin/flatlock-cmp.js"
   },
   "files": [
     "src",
@@ -54,6 +54,7 @@
     "format:check": "biome format src test",
     "check": "biome check src test && pnpm run build:types",
     "check:fix": "biome check --write src test",
+    "build:ncc": "./bin/ncc.sh",
     "prepublishOnly": "pnpm run build:types"
   },
   "dependencies": {
@@ -63,6 +64,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
+    "@vercel/ncc": "^0.38.4",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.10.2",
     "c8": "^10.1.3",
