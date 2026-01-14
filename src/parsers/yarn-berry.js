@@ -1,6 +1,18 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { parseSyml } from '@yarnpkg/parsers';
 
 /** @typedef {import('./types.js').Dependency} Dependency */
+
+/**
+ * @typedef {Object} WorkspacePackage
+ * @property {string} name
+ * @property {string} version
+ * @property {Record<string, string>} [dependencies]
+ * @property {Record<string, string>} [devDependencies]
+ * @property {Record<string, string>} [optionalDependencies]
+ * @property {Record<string, string>} [peerDependencies]
+ */
 
 /**
  * Extract package name from yarn berry resolution field.
@@ -251,4 +263,80 @@ export function* fromYarnBerryLock(input, _options = {}) {
       yield dep;
     }
   }
+}
+
+/**
+ * Extract workspace paths from yarn berry lockfile.
+ *
+ * Yarn berry workspace entries use `@workspace:` protocol in keys.
+ * Keys can have multiple comma-separated descriptors.
+ *
+ * @param {string | object} input - Lockfile content string or pre-parsed object
+ * @returns {string[]} Array of workspace paths (e.g., ['packages/foo', 'packages/bar'])
+ *
+ * @example
+ * extractWorkspacePaths(lockfile)
+ * // => ['packages/babel-core', 'packages/babel-parser', ...]
+ */
+export function extractWorkspacePaths(input) {
+  const lockfile = typeof input === 'string' ? parseSyml(input) : input;
+  const paths = new Set();
+
+  for (const key of Object.keys(lockfile)) {
+    if (key === '__metadata') continue;
+    if (!key.includes('@workspace:')) continue;
+
+    // Keys can have multiple comma-separated descriptors:
+    // "@babel/types@workspace:*, @babel/types@workspace:^, @babel/types@workspace:packages/babel-types"
+    const descriptors = key.split(', ');
+    for (const desc of descriptors) {
+      if (!desc.includes('@workspace:')) continue;
+
+      const wsIndex = desc.indexOf('@workspace:');
+      const path = desc.slice(wsIndex + '@workspace:'.length);
+
+      // Skip wildcards (*, ^) and root workspace (.)
+      if (path && path !== '.' && path !== '*' && path !== '^' && path.includes('/')) {
+        paths.add(path);
+      }
+    }
+  }
+
+  return [...paths];
+}
+
+/**
+ * Build workspace packages map by reading package.json files.
+ *
+ * @param {string | object} input - Lockfile content string or pre-parsed object
+ * @param {string} repoDir - Path to repository root
+ * @returns {Promise<Record<string, WorkspacePackage>>} Map of workspace path to package info
+ *
+ * @example
+ * const workspaces = await buildWorkspacePackages(lockfile, '/path/to/repo');
+ * // => { 'packages/foo': { name: '@scope/foo', version: '1.0.0', dependencies: {...} } }
+ */
+export async function buildWorkspacePackages(input, repoDir) {
+  const paths = extractWorkspacePaths(input);
+  /** @type {Record<string, WorkspacePackage>} */
+  const workspacePackages = {};
+
+  for (const wsPath of paths) {
+    const pkgJsonPath = join(repoDir, wsPath, 'package.json');
+    try {
+      const pkg = JSON.parse(await readFile(pkgJsonPath, 'utf8'));
+      workspacePackages[wsPath] = {
+        name: pkg.name,
+        version: pkg.version || '0.0.0',
+        dependencies: pkg.dependencies,
+        devDependencies: pkg.devDependencies,
+        optionalDependencies: pkg.optionalDependencies,
+        peerDependencies: pkg.peerDependencies
+      };
+    } catch {
+      // Skip workspaces with missing or invalid package.json
+    }
+  }
+
+  return workspacePackages;
 }

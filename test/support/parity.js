@@ -264,7 +264,7 @@ export async function getThreeWayComparison(
 ) {
   // Method 1: Parse monorepo lockfile
   const monorepoLockfile = await FlatlockSet.fromPath(monorepoLockfilePath);
-  const monorepoDeps = monorepoLockfile.dependenciesOf(workspacePkg, {
+  const monorepoDeps = await monorepoLockfile.dependenciesOf(workspacePkg, {
     workspacePath,
     dev: false,
     peer: true,

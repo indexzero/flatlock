@@ -130,8 +130,9 @@ const lockfile = await FlatlockSet.fromPath('./package-lock.json');
 const pkg = JSON.parse(await readFile('./packages/api/package.json', 'utf8'));
 
 // Get only dependencies reachable from this workspace
-const subset = lockfile.dependenciesOf(pkg, {
+const subset = await lockfile.dependenciesOf(pkg, {
   workspacePath: 'packages/api',  // for correct resolution in monorepos
+  repoDir: '.',                    // reads workspace package.json files for accurate traversal
   dev: false,                      // exclude devDependencies
   optional: true,                  // include optionalDependencies
   peer: false                      // exclude peerDependencies

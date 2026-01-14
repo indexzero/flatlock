@@ -38,7 +38,7 @@ for (const dep of flatlockSet) {
 
 // Try dependenciesOf
 console.log('\n=== dependenciesOf ===');
-const deps = flatlockSet.dependenciesOf(workspacePkg, {
+const deps = await flatlockSet.dependenciesOf(workspacePkg, {
   workspacePath: workspace,
   dev: false
 });
