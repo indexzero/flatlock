@@ -36,7 +36,8 @@
   "main": "src/index.js",
   "bin": {
     "flatlock": "./bin/flatlock.js",
-    "flatlock-cmp": "./bin/flatlock-cmp.js"
+    "flatlock-cmp": "./bin/flatlock-cmp.js",
+    "flatcover": "./bin/flatcover.js"
   },
   "files": [
     "src",
@@ -60,7 +61,8 @@
   "dependencies": {
     "@yarnpkg/lockfile": "^1.1.0",
     "@yarnpkg/parsers": "^3.0.3",
-    "js-yaml": "^4.1.1"
+    "js-yaml": "^4.1.1",
+    "undici": "^7.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",

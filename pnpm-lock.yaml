@@ -17,6 +17,9 @@ importers:
       js-yaml:
         specifier: ^4.1.1
         version: 4.1.1
+      undici:
+        specifier: ^7.0.0
+        version: 7.18.2
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.3.8
@@ -6096,8 +6099,7 @@ snapshots:
 
   undici-types@6.21.0: {}
 
-  undici@7.18.2:
-    optional: true
+  undici@7.18.2: {}
 
   unicorn-magic@0.1.0: {}
 
