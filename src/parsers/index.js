@@ -3,23 +3,23 @@
  */
 
 export {
-  fromPackageLock,
-  parseLockfileKey as parseNpmKey,
+  buildWorkspacePackages as buildNpmWorkspacePackages,
   extractWorkspacePaths as extractNpmWorkspacePaths,
-  buildWorkspacePackages as buildNpmWorkspacePackages
+  fromPackageLock,
+  parseLockfileKey as parseNpmKey
 } from './npm.js';
 export {
-  fromPnpmLock,
-  parseLockfileKey as parsePnpmKey,
+  buildWorkspacePackages as buildPnpmWorkspacePackages,
   extractWorkspacePaths as extractPnpmWorkspacePaths,
-  buildWorkspacePackages as buildPnpmWorkspacePackages
+  fromPnpmLock,
+  parseLockfileKey as parsePnpmKey
 } from './pnpm.js';
 export {
+  buildWorkspacePackages as buildYarnBerryWorkspacePackages,
+  extractWorkspacePaths as extractYarnBerryWorkspacePaths,
   fromYarnBerryLock,
   parseLockfileKey as parseYarnBerryKey,
-  parseResolution as parseYarnBerryResolution,
-  extractWorkspacePaths as extractYarnBerryWorkspacePaths,
-  buildWorkspacePackages as buildYarnBerryWorkspacePackages
+  parseResolution as parseYarnBerryResolution
 } from './yarn-berry.js';
 export {
   fromYarnClassicLock,

@@ -47,18 +47,9 @@ export async function getGroundTruthSBOM(packageName, version) {
 
     // 4. Run cdxgen (CycloneDX generator)
     const sbomPath = join(tmpDir, 'sbom.json');
-    const cdxResult = await x(
-      'npx',
-      [
-        '@cyclonedx/cdxgen',
-        '--required-only',
-        '-o',
-        sbomPath
-      ],
-      {
-        nodeOptions: { cwd: tmpDir }
-      }
-    );
+    const cdxResult = await x('npx', ['@cyclonedx/cdxgen', '--required-only', '-o', sbomPath], {
+      nodeOptions: { cwd: tmpDir }
+    });
 
     if (cdxResult.exitCode !== 0) {
       throw new Error(`cdxgen failed: ${cdxResult.stderr}`);
