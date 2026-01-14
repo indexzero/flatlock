@@ -407,13 +407,15 @@ export class FlatlockSet {
       });
     }
 
-    // If yarn berry with workspace packages, use workspace-aware resolution
-    if (this.#type === Type.YARN_BERRY && workspacePackages) {
+    // If yarn berry with workspace context, use workspace-aware resolution
+    // Auto-extract workspacePackages from lockfile if not provided
+    if (this.#type === Type.YARN_BERRY && workspacePath) {
+      const wsPackages = workspacePackages || this.#extractYarnBerryWorkspaces();
       return this.#dependenciesOfYarnBerry(seeds, packageJson, {
         dev,
         optional,
         peer,
-        workspacePackages
+        workspacePackages: wsPackages
       });
     }
 
@@ -1038,6 +1040,40 @@ export class FlatlockSet {
       }
     }
     return null;
+  }
+
+  /**
+   * Extract workspace packages from yarn berry lockfile.
+   * Yarn berry lockfiles contain workspace entries with `@workspace:` protocol.
+   * @returns {Record<string, {name: string, version: string}>}
+   */
+  #extractYarnBerryWorkspaces() {
+    /** @type {Record<string, {name: string, version: string}>} */
+    const workspacePackages = {};
+
+    for (const [key, entry] of Object.entries(this.#packages || {})) {
+      if (!key.includes('@workspace:')) continue;
+
+      // Handle potentially multiple descriptors (comma-separated)
+      const descriptors = key.split(', ');
+      for (const descriptor of descriptors) {
+        if (!descriptor.includes('@workspace:')) continue;
+
+        // Find @workspace: and extract path after it
+        const wsIndex = descriptor.indexOf('@workspace:');
+        const path = descriptor.slice(wsIndex + '@workspace:'.length);
+
+        // Extract name - everything before @workspace:
+        const name = descriptor.slice(0, wsIndex);
+
+        workspacePackages[path] = {
+          name,
+          version: entry.version || '0.0.0'
+        };
+      }
+    }
+
+    return workspacePackages;
   }
 
   /**
