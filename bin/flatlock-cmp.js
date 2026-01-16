@@ -187,7 +187,7 @@ Examples:
         const wsNote = result.workspaceCount > 0 ? ` (${result.workspaceCount} workspaces excluded)` : '';
         console.log(`✓  ${result.path}${wsNote}`);
         console.log(`   count: flatlock=${result.flatlockCount} ${result.source}=${result.comparisonCount}`);
-        console.log(`   sets:  equinumerous`);
+        console.log(`   sets:  equinumerous\n`);
       }
     } else {
       // Determine if this is a "superset" (flatlock found more, expected for pnpm)
@@ -203,7 +203,7 @@ Examples:
           console.log(`⊃  ${result.path}${wsNote}`);
           console.log(`   count: flatlock=${result.flatlockCount} ${result.source}=${result.comparisonCount}`);
           console.log(`   sets:  SUPERSET (+${result.onlyInFlatlock.length} reachable deps)`);
-          console.log(`   note:  flatlock's reachability analysis found transitive deps pnpm omits`);
+          console.log(`   note:  flatlock's reachability analysis found transitive deps pnpm omits\n`);
         }
       } else {
         mismatchCount++;
