@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { parseSyml } from '@yarnpkg/parsers';
 import yaml from 'js-yaml';
-import { detectType, fromPath, Type } from './index.js';
+import { collect, detectType, Type } from './index.js';
 import { parseYarnBerryKey, parseYarnClassic, parseYarnClassicKey } from './parsers/index.js';
 import { parseSpec as parsePnpmSpec } from './parsers/pnpm.js';
 
@@ -545,12 +545,10 @@ export async function compare(filepath, options = {}) {
   const content = await readFile(filepath, 'utf8');
   const type = detectType({ path: filepath, content });
 
-  const flatlockSet = new Set();
-  for await (const dep of fromPath(filepath)) {
-    if (dep.name && dep.version) {
-      flatlockSet.add(`${dep.name}@${dep.version}`);
-    }
-  }
+  console.time(`⏱  collect [...]${filepath.slice(-40)}`);
+  const deps = await collect(filepath);
+  console.timeEnd(`⏱  collect [...]${filepath.slice(-40)}`);
+  const flatlockSet = new Set(deps.map(({ name, version }) => `${name}@${version}`));
 
   let comparisonResult;
   switch (type) {
