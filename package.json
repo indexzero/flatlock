@@ -1,6 +1,6 @@
 {
   "name": "flatlock",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "The Matlock of lockfile parsers - extracts packages without building dependency graphs",
   "keywords": [
     "lockfile",

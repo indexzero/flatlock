@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-01-18
+
+### 🔒 Security
+- Upgrade `node-tar` to 7.5.3 to address CVE-2026-23745
+
+### 🆕 Added
+- **flatcover input flexibility**: Accept packages from multiple sources beyond lockfiles
+  - `--list` (`-l`): Read from JSON array file of `{name, version}` objects
+  - `-` (stdin): Stream NDJSON package objects for pipeline integration
+  ```bash
+  # From JSON list file
+  flatcover --list packages.json --cover --summary
+
+  # From stdin (NDJSON)
+  echo '{"name":"lodash","version":"4.17.21"}' | flatcover - --cover
+  ```
+- `--full` flag for flatcover to include integrity hash and resolved URL in output
+
+### 🚧 Changed
+- `flatlock-cmp` benchmark mode uses `flatlock.collect()` with `console.time()` for more accurate parse performance measurements
+
+## [1.3.0] - 2026-01-14
+
 ### 🆕 Added
 - `repoDir` option for `dependenciesOf()`
   ```javascript
@@ -26,8 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🐞 Fixed
 - yarn-berry: separate prod/dev traversal (was merging both)
 - pnpm v9: include snapshots in traversal (was packages only)
+- `flatcover` now respects registry URL path (e.g., `/npm/` prefix) when fetching packages from proxied or scoped registries (#7)
 
-## 🤝 Contributors
+### 🤝 Contributors
 
 - @ppalucha - `fix(flatcover): respect registry URL path when fetching packages` (#7)
 
@@ -108,8 +132,9 @@ Initial release of flatlock - the Matlock of lockfile parsers.
 - Designed for use cases that need package enumeration without dependency resolution: SBOM generation, vulnerability scanning, license compliance, integrity verification
 - For full dependency tree analysis ("why is X installed?"), use `@npmcli/arborist` instead
 
-[unreleased]: https://github.com/indexzero/flatlock/compare/1.3.0...HEAD
-[1.3.0]: https://github.com/indexzero/flatlock/compare/1.2.0...1.3.0
+[unreleased]: https://github.com/indexzero/flatlock/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/indexzero/flatlock/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/indexzero/flatlock/compare/1.2.0...v1.3.0
 [1.2.0]: https://github.com/indexzero/flatlock/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/indexzero/flatlock/compare/1.0.0...1.1.0
 [1.0.1]: https://github.com/indexzero/flatlock/compare/1.0.0...1.0.1
