@@ -87,6 +87,11 @@
     "@yarnpkg/core": "^4.5.0"
   },
   "packageManager": "pnpm@10.25.0",
+  "pnpm": {
+    "overrides": {
+      "tar": ">=7.5.3"
+    }
+  },
   "engines": {
     "node": ">=22"
   },
