@@ -68,11 +68,14 @@ Coverage options:
 
 Output formats (with --cover):
   (default)               CSV: package,version,present
+  --full                  CSV: package,version,present,integrity,resolved
   --json                  [{"name":"...","version":"...","present":true}, ...]
+  --full --json           Adds "integrity" and "resolved" fields to JSON
   --ndjson                {"name":"...","version":"...","present":true} per line
 
 Examples:
   flatcover package-lock.json --cover
+  flatcover package-lock.json --cover --full --json
   flatcover package-lock.json --cover --registry https://npm.pkg.github.com --token ghp_xxx
   flatcover pnpm-lock.yaml --cover --auth admin:secret --ndjson
   flatcover pnpm-lock.yaml -w packages/core --cover --summary`);
@@ -161,21 +164,22 @@ function createClient(registryUrl, { auth, token }) {
 
 /**
  * Check coverage for all dependencies
- * @param {Array<{ name: string, version: string }>} deps
+ * @param {Array<{ name: string, version: string, integrity?: string, resolved?: string }>} deps
  * @param {{ registry: string, auth?: string, token?: string, progress: boolean }} options
- * @returns {AsyncGenerator<{ name: string, version: string, present: boolean, error?: string }>}
+ * @returns {AsyncGenerator<{ name: string, version: string, present: boolean, integrity?: string, resolved?: string, error?: string }>}
  */
 async function* checkCoverage(deps, { registry, auth, token, progress }) {
   const { client, headers, baseUrl } = createClient(registry, { auth, token });
 
   // Group by package name to avoid duplicate requests
-  /** @type {Map<string, Set<string>>} */
+  // Store full dep info (including integrity/resolved) keyed by version
+  /** @type {Map<string, Map<string, { name: string, version: string, integrity?: string, resolved?: string }>>} */
   const byPackage = new Map();
   for (const dep of deps) {
     if (!byPackage.has(dep.name)) {
-      byPackage.set(dep.name, new Set());
+      byPackage.set(dep.name, new Map());
     }
-    byPackage.get(dep.name).add(dep.version);
+    byPackage.get(dep.name).set(dep.version, dep);
   }
 
   const packages = [...byPackage.entries()];
@@ -187,7 +191,7 @@ async function* checkCoverage(deps, { registry, auth, token, progress }) {
     const batch = packages.slice(i, i + concurrency);
 
     const results = await Promise.all(
-      batch.map(async ([name, versions]) => {
+      batch.map(async ([name, versionMap]) => {
         const encodedName = encodePackageName(name);
         const basePath = baseUrl.pathname.replace(/\/$/, '');
         const path = `${basePath}/${encodedName}`;
@@ -216,21 +220,29 @@ async function* checkCoverage(deps, { registry, auth, token, progress }) {
             packumentVersions = packument.versions || {};
           }
 
-          // Check each version
+          // Check each version, preserving integrity/resolved from original dep
           const versionResults = [];
-          for (const version of versions) {
+          for (const [version, dep] of versionMap) {
             const present = packumentVersions ? !!packumentVersions[version] : false;
-            versionResults.push({ name, version, present });
+            const result = { name, version, present };
+            if (dep.integrity) result.integrity = dep.integrity;
+            if (dep.resolved) result.resolved = dep.resolved;
+            versionResults.push(result);
           }
           return versionResults;
         } catch (err) {
           // Return error for all versions of this package
-          return [...versions].map(version => ({
-            name,
-            version,
-            present: false,
-            error: err.message
-          }));
+          return [...versionMap.values()].map(dep => {
+            const result = {
+              name: dep.name,
+              version: dep.version,
+              present: false,
+              error: err.message
+            };
+            if (dep.integrity) result.integrity = dep.integrity;
+            if (dep.resolved) result.resolved = dep.resolved;
+            return result;
+          });
         }
       })
     );
@@ -300,10 +312,10 @@ function outputDeps(deps, { specs, json, ndjson, full }) {
 
 /**
  * Output coverage results
- * @param {AsyncGenerator<{ name: string, version: string, present: boolean, error?: string }>} results
- * @param {{ json: boolean, ndjson: boolean, summary: boolean }} options
+ * @param {AsyncGenerator<{ name: string, version: string, present: boolean, integrity?: string, resolved?: string, error?: string }>} results
+ * @param {{ json: boolean, ndjson: boolean, summary: boolean, full: boolean }} options
  */
-async function outputCoverage(results, { json, ndjson, summary }) {
+async function outputCoverage(results, { json, ndjson, summary, full }) {
   const all = [];
   let presentCount = 0;
   let missingCount = 0;
@@ -317,7 +329,10 @@ async function outputCoverage(results, { json, ndjson, summary }) {
 
     if (ndjson) {
       // Stream immediately
-      console.log(JSON.stringify({ name: result.name, version: result.version, present: result.present }));
+      const obj = { name: result.name, version: result.version, present: result.present };
+      if (full && result.integrity) obj.integrity = result.integrity;
+      if (full && result.resolved) obj.resolved = result.resolved;
+      console.log(JSON.stringify(obj));
     } else {
       all.push(result);
     }
@@ -328,13 +343,25 @@ async function outputCoverage(results, { json, ndjson, summary }) {
     all.sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
 
     if (json) {
-      const data = all.map(r => ({ name: r.name, version: r.version, present: r.present }));
+      const data = all.map(r => {
+        const obj = { name: r.name, version: r.version, present: r.present };
+        if (full && r.integrity) obj.integrity = r.integrity;
+        if (full && r.resolved) obj.resolved = r.resolved;
+        return obj;
+      });
       console.log(JSON.stringify(data, null, 2));
     } else {
       // CSV output
-      console.log('package,version,present');
-      for (const r of all) {
-        console.log(`${r.name},${r.version},${r.present}`);
+      if (full) {
+        console.log('package,version,present,integrity,resolved');
+        for (const r of all) {
+          console.log(`${r.name},${r.version},${r.present},${r.integrity || ''},${r.resolved || ''}`);
+        }
+      } else {
+        console.log('package,version,present');
+        for (const r of all) {
+          console.log(`${r.name},${r.version},${r.present}`);
+        }
       }
     }
   }
@@ -381,7 +408,8 @@ try {
     await outputCoverage(results, {
       json: values.json,
       ndjson: values.ndjson,
-      summary: values.summary
+      summary: values.summary,
+      full: values.full
     });
   } else {
     // Standard flatlock mode
