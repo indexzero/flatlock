@@ -9,11 +9,11 @@
 
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
-import { writeFileSync, unlinkSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { describe, test, before, after } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { after, before, describe, test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const binPath = join(__dirname, '..', 'bin', 'flatcover.js');
@@ -118,7 +118,11 @@ describe('flatcover --full --cover', () => {
 
       // Check header
       const header = lines[0];
-      assert.equal(header, 'package,version,present,integrity,resolved', 'Header should include integrity,resolved columns');
+      assert.equal(
+        header,
+        'package,version,present,integrity,resolved',
+        'Header should include integrity,resolved columns'
+      );
 
       // Check first data row has 5 columns
       const dataRow = lines[1].split(',');
@@ -133,7 +137,11 @@ describe('flatcover --full --cover', () => {
 
       // Check header
       const header = lines[0];
-      assert.equal(header, 'package,version,present', 'Header should NOT include integrity,resolved columns');
+      assert.equal(
+        header,
+        'package,version,present',
+        'Header should NOT include integrity,resolved columns'
+      );
 
       // Check first data row has 3 columns
       const dataRow = lines[1].split(',');
@@ -223,7 +231,11 @@ describe('flatcover --list (JSON file input)', () => {
       const data = JSON.parse(output);
 
       assert.equal(data.length, 1, 'Should have 1 result');
-      assert.equal(data[0].integrity, 'sha512-test-integrity-hash', 'Should preserve integrity from input');
+      assert.equal(
+        data[0].integrity,
+        'sha512-test-integrity-hash',
+        'Should preserve integrity from input'
+      );
     } finally {
       try {
         unlinkSync(tempFile);
@@ -314,7 +326,8 @@ describe('flatcover stdin input (- argument)', () => {
   });
 
   test('skips empty lines in stdin NDJSON', () => {
-    const ndjson = '{"name":"lodash","version":"4.17.21"}\n\n{"name":"express","version":"4.18.2"}\n';
+    const ndjson =
+      '{"name":"lodash","version":"4.17.21"}\n\n{"name":"express","version":"4.18.2"}\n';
     const output = runFlatcover('- --cover --json', { input: ndjson });
     const data = JSON.parse(output);
 
