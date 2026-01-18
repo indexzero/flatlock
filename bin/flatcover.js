@@ -14,6 +14,8 @@
 
 import { parseArgs } from 'node:util';
 import { readFileSync } from 'node:fs';
+import { createReadStream } from 'node:fs';
+import { createInterface } from 'node:readline';
 import { dirname, join } from 'node:path';
 import { Pool, RetryAgent } from 'undici';
 import { FlatlockSet } from '../src/set.js';
@@ -21,6 +23,7 @@ import { FlatlockSet } from '../src/set.js';
 const { values, positionals } = parseArgs({
   options: {
     workspace: { type: 'string', short: 'w' },
+    list: { type: 'string', short: 'l' },
     dev: { type: 'boolean', default: false },
     peer: { type: 'boolean', default: true },
     specs: { type: 'boolean', short: 's', default: false },
@@ -39,16 +42,28 @@ const { values, positionals } = parseArgs({
   allowPositionals: true
 });
 
-if (values.help || positionals.length === 0) {
+// Check if stdin input is requested via '-' positional argument (Unix convention)
+const useStdin = positionals[0] === '-';
+
+// Determine if we have a valid input source
+const hasInputSource = positionals.length > 0 || values.list;
+
+if (values.help || !hasInputSource) {
   console.log(`flatcover - Check lockfile package coverage against a registry
 
 Usage:
   flatcover <lockfile> --cover
-  flatcover <lockfile> --cover --registry <url>
+  flatcover --list packages.json --cover
+  cat packages.ndjson | flatcover - --cover
   flatcover <lockfile> --cover --registry <url> --auth user:pass
 
+Input sources (mutually exclusive):
+  <lockfile>              Parse lockfile (package-lock.json, pnpm-lock.yaml, yarn.lock)
+  -l, --list <file>       Read JSON array of {name, version} objects from file
+  -                       Read NDJSON {name, version} objects from stdin (one per line)
+
 Options:
-  -w, --workspace <path>  Workspace path within monorepo
+  -w, --workspace <path>  Workspace path within monorepo (lockfile mode only)
   -s, --specs             Include version (name@version or {name,version})
   --json                  Output as JSON array
   --ndjson                Output as newline-delimited JSON (streaming)
@@ -74,11 +89,21 @@ Output formats (with --cover):
   --ndjson                {"name":"...","version":"...","present":true} per line
 
 Examples:
+  # From lockfile
   flatcover package-lock.json --cover
   flatcover package-lock.json --cover --full --json
+
+  # From JSON list file
+  flatcover --list packages.json --cover --summary
+  echo '[{"name":"lodash","version":"4.17.21"}]' > pkgs.json && flatcover -l pkgs.json --cover
+
+  # From stdin (NDJSON) - use '-' to read from stdin
+  echo '{"name":"lodash","version":"4.17.21"}' | flatcover - --cover
+  cat packages.ndjson | flatcover - --cover --json
+
+  # With custom registry
   flatcover package-lock.json --cover --registry https://npm.pkg.github.com --token ghp_xxx
-  flatcover pnpm-lock.yaml --cover --auth admin:secret --ndjson
-  flatcover pnpm-lock.yaml -w packages/core --cover --summary`);
+  flatcover pnpm-lock.yaml --cover --auth admin:secret --ndjson`);
   process.exit(values.help ? 0 : 1);
 }
 
@@ -89,6 +114,19 @@ if (values.json && values.ndjson) {
 
 if (values.auth && values.token) {
   console.error('Error: --auth and --token are mutually exclusive');
+  process.exit(1);
+}
+
+// Validate mutually exclusive input sources
+// Note: useStdin means positionals[0] === '-', so it's already counted in positionals.length
+if (positionals.length > 0 && values.list) {
+  console.error('Error: Cannot use both lockfile/stdin and --list');
+  process.exit(1);
+}
+
+// --workspace only works with lockfile input (not stdin or --list)
+if (values.workspace && (useStdin || values.list || !positionals.length)) {
+  console.error('Error: --workspace can only be used with lockfile input');
   process.exit(1);
 }
 
@@ -104,6 +142,70 @@ if (values.cover) {
 
 const lockfilePath = positionals[0];
 const concurrency = Math.max(1, Math.min(50, Number.parseInt(values.concurrency, 10) || 20));
+
+/**
+ * Read packages from a JSON list file
+ * @param {string} filePath - Path to JSON file containing [{name, version}, ...]
+ * @returns {Array<{ name: string, version: string }>}
+ */
+function readJsonList(filePath) {
+  const content = readFileSync(filePath, 'utf8');
+  const data = JSON.parse(content);
+
+  if (!Array.isArray(data)) {
+    throw new Error('--list file must contain a JSON array');
+  }
+
+  const packages = [];
+  for (const item of data) {
+    if (!item.name || !item.version) {
+      throw new Error('Each item in --list must have "name" and "version" fields');
+    }
+    packages.push({
+      name: item.name,
+      version: item.version,
+      integrity: item.integrity,
+      resolved: item.resolved
+    });
+  }
+
+  return packages;
+}
+
+/**
+ * Read packages from stdin as NDJSON
+ * @returns {Promise<Array<{ name: string, version: string }>>}
+ */
+async function readStdinNdjson() {
+  const packages = [];
+
+  const rl = createInterface({
+    input: process.stdin,
+    crlfDelay: Infinity
+  });
+
+  for await (const line of rl) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    try {
+      const item = JSON.parse(trimmed);
+      if (!item.name || !item.version) {
+        throw new Error('Each line must have "name" and "version" fields');
+      }
+      packages.push({
+        name: item.name,
+        version: item.version,
+        integrity: item.integrity,
+        resolved: item.resolved
+      });
+    } catch (err) {
+      throw new Error(`Invalid JSON on stdin: ${err.message}`);
+    }
+  }
+
+  return packages;
+}
 
 /**
  * Encode package name for URL (handle scoped packages)
@@ -377,22 +479,41 @@ async function outputCoverage(results, { json, ndjson, summary, full }) {
 }
 
 try {
-  const lockfile = await FlatlockSet.fromPath(lockfilePath);
   let deps;
 
-  if (values.workspace) {
-    const repoDir = dirname(lockfilePath);
-    const workspacePkgPath = join(repoDir, values.workspace, 'package.json');
-    const workspacePkg = JSON.parse(readFileSync(workspacePkgPath, 'utf8'));
-
-    deps = await lockfile.dependenciesOf(workspacePkg, {
-      workspacePath: values.workspace,
-      repoDir,
-      dev: values.dev,
-      peer: values.peer
-    });
+  // Determine input source and load dependencies
+  if (useStdin) {
+    // Read from stdin (NDJSON)
+    deps = await readStdinNdjson();
+    if (deps.length === 0) {
+      console.error('Error: No packages read from stdin');
+      process.exit(1);
+    }
+  } else if (values.list) {
+    // Read from JSON list file
+    deps = readJsonList(values.list);
+    if (deps.length === 0) {
+      console.error('Error: No packages found in --list file');
+      process.exit(1);
+    }
   } else {
-    deps = lockfile;
+    // Read from lockfile (existing behavior)
+    const lockfile = await FlatlockSet.fromPath(lockfilePath);
+
+    if (values.workspace) {
+      const repoDir = dirname(lockfilePath);
+      const workspacePkgPath = join(repoDir, values.workspace, 'package.json');
+      const workspacePkg = JSON.parse(readFileSync(workspacePkgPath, 'utf8'));
+
+      deps = await lockfile.dependenciesOf(workspacePkg, {
+        workspacePath: values.workspace,
+        repoDir,
+        dev: values.dev,
+        peer: values.peer
+      });
+    } else {
+      deps = lockfile;
+    }
   }
 
   if (values.cover) {
