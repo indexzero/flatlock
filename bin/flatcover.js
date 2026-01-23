@@ -355,7 +355,7 @@ async function* checkCoverage(deps, { registry, auth, token, progress }) {
         yield result;
         completed++;
         if (progress) {
-          process.stderr.write(`\r  Checking: ${completed}/${total} packages`);
+          process.stderr.write(`\r  Checking: ${completed}/${total} package specs`);
         }
       }
     }
