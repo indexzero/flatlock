@@ -37,6 +37,7 @@ const { values, positionals } = parseArgs({
     concurrency: { type: 'string', default: '20' },
     progress: { type: 'boolean', default: false },
     summary: { type: 'boolean', default: false },
+    before: { type: 'string', short: 'b' },
     help: { type: 'boolean', short: 'h' }
   },
   allowPositionals: true
@@ -80,6 +81,7 @@ Coverage options:
   --concurrency <n>       Concurrent requests (default: 20)
   --progress              Show progress on stderr
   --summary               Show coverage summary on stderr
+  --before <date>         Only count versions published before this ISO date
 
 Output formats (with --cover):
   (default)               CSV: package,version,present
@@ -267,10 +269,10 @@ function createClient(registryUrl, { auth, token }) {
 /**
  * Check coverage for all dependencies
  * @param {Array<{ name: string, version: string, integrity?: string, resolved?: string }>} deps
- * @param {{ registry: string, auth?: string, token?: string, progress: boolean }} options
+ * @param {{ registry: string, auth?: string, token?: string, progress: boolean, before?: string }} options
  * @returns {AsyncGenerator<{ name: string, version: string, present: boolean, integrity?: string, resolved?: string, error?: string }>}
  */
-async function* checkCoverage(deps, { registry, auth, token, progress }) {
+async function* checkCoverage(deps, { registry, auth, token, progress, before }) {
   const { client, headers, baseUrl } = createClient(registry, { auth, token });
 
   // Group by package name to avoid duplicate requests
@@ -316,16 +318,23 @@ async function* checkCoverage(deps, { registry, auth, token, progress }) {
           }
 
           let packumentVersions = null;
+          let packumentTime = null;
           if (response.statusCode === 200) {
             const body = Buffer.concat(chunks).toString('utf8');
             const packument = JSON.parse(body);
             packumentVersions = packument.versions || {};
+            packumentTime = packument.time || {};
           }
 
           // Check each version, preserving integrity/resolved from original dep
           const versionResults = [];
           for (const [version, dep] of versionMap) {
-            const present = packumentVersions ? !!packumentVersions[version] : false;
+            let present = packumentVersions ? !!packumentVersions[version] : false;
+
+            // Time travel: if --before set, only count if published before that date
+            if (present && before && packumentTime[version] >= before) {
+              present = false;
+            }
             const result = { name, version, present };
             if (dep.integrity) result.integrity = dep.integrity;
             if (dep.resolved) result.resolved = dep.resolved;
@@ -523,7 +532,8 @@ try {
       registry: values.registry,
       auth: values.auth,
       token: values.token,
-      progress: values.progress
+      progress: values.progress,
+      before: values.before
     });
 
     await outputCoverage(results, {
