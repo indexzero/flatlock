@@ -14,6 +14,7 @@
 
 import { parseArgs } from 'node:util';
 import { readFileSync } from 'node:fs';
+import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { dirname, join } from 'node:path';
@@ -38,6 +39,7 @@ const { values, positionals } = parseArgs({
     progress: { type: 'boolean', default: false },
     summary: { type: 'boolean', default: false },
     before: { type: 'string', short: 'b' },
+    cache: { type: 'string', short: 'c' },
     help: { type: 'boolean', short: 'h' }
   },
   allowPositionals: true
@@ -82,6 +84,7 @@ Coverage options:
   --progress              Show progress on stderr
   --summary               Show coverage summary on stderr
   --before <date>         Only count versions published before this ISO date
+  -c, --cache <dir>       Cache packuments to disk for faster subsequent runs
 
 Output formats (with --cover):
   (default)               CSV: package,version,present
@@ -220,6 +223,68 @@ function encodePackageName(name) {
 }
 
 /**
+ * Read cached packument metadata (etag, lastModified)
+ * @param {string} cacheDir - Cache directory path
+ * @param {string} encodedName - URL-encoded package name
+ * @returns {Promise<{ etag?: string, lastModified?: string } | null>}
+ */
+async function readCacheMeta(cacheDir, encodedName) {
+  try {
+    const metaPath = join(cacheDir, `${encodedName}.meta.json`);
+    const content = await readFile(metaPath, 'utf8');
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read cached packument from disk
+ * @param {string} cacheDir - Cache directory path
+ * @param {string} encodedName - URL-encoded package name
+ * @returns {Promise<object | null>}
+ */
+async function readCachedPackument(cacheDir, encodedName) {
+  try {
+    const cachePath = join(cacheDir, `${encodedName}.json`);
+    const content = await readFile(cachePath, 'utf8');
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Write packument and metadata to cache atomically
+ * @param {string} cacheDir - Cache directory path
+ * @param {string} encodedName - URL-encoded package name
+ * @param {string} body - Raw packument JSON string
+ * @param {{ etag?: string, lastModified?: string }} meta - Cache metadata
+ */
+async function writeCache(cacheDir, encodedName, body, meta) {
+  await mkdir(cacheDir, { recursive: true });
+
+  const cachePath = join(cacheDir, `${encodedName}.json`);
+  const metaPath = join(cacheDir, `${encodedName}.meta.json`);
+  const pid = process.pid;
+
+  // Write packument atomically
+  const tmpCachePath = `${cachePath}.${pid}.tmp`;
+  await writeFile(tmpCachePath, body);
+  await rename(tmpCachePath, cachePath);
+
+  // Write metadata atomically
+  const metaObj = {
+    etag: meta.etag,
+    lastModified: meta.lastModified,
+    fetchedAt: new Date().toISOString()
+  };
+  const tmpMetaPath = `${metaPath}.${pid}.tmp`;
+  await writeFile(tmpMetaPath, JSON.stringify(metaObj));
+  await rename(tmpMetaPath, metaPath);
+}
+
+/**
  * Create undici client with retry support
  * @param {string} registryUrl
  * @param {{ auth?: string, token?: string }} options
@@ -269,10 +334,10 @@ function createClient(registryUrl, { auth, token }) {
 /**
  * Check coverage for all dependencies
  * @param {Array<{ name: string, version: string, integrity?: string, resolved?: string }>} deps
- * @param {{ registry: string, auth?: string, token?: string, progress: boolean, before?: string }} options
+ * @param {{ registry: string, auth?: string, token?: string, progress: boolean, before?: string, cache?: string }} options
  * @returns {AsyncGenerator<{ name: string, version: string, present: boolean, integrity?: string, resolved?: string, error?: string }>}
  */
-async function* checkCoverage(deps, { registry, auth, token, progress, before }) {
+async function* checkCoverage(deps, { registry, auth, token, progress, before, cache }) {
   const { client, headers, baseUrl } = createClient(registry, { auth, token });
 
   // Group by package name to avoid duplicate requests
@@ -301,10 +366,22 @@ async function* checkCoverage(deps, { registry, auth, token, progress, before })
         const path = `${basePath}/${encodedName}`;
 
         try {
+          // Build request headers, adding conditional request headers if cached
+          const reqHeaders = { ...headers };
+          let cacheMeta = null;
+          if (cache) {
+            cacheMeta = await readCacheMeta(cache, encodedName);
+            if (cacheMeta?.etag) {
+              reqHeaders['If-None-Match'] = cacheMeta.etag;
+            } else if (cacheMeta?.lastModified) {
+              reqHeaders['If-Modified-Since'] = cacheMeta.lastModified;
+            }
+          }
+
           const response = await client.request({
             method: 'GET',
             path,
-            headers
+            headers: reqHeaders
           });
 
           const chunks = [];
@@ -319,11 +396,27 @@ async function* checkCoverage(deps, { registry, auth, token, progress, before })
 
           let packumentVersions = null;
           let packumentTime = null;
-          if (response.statusCode === 200) {
+
+          if (response.statusCode === 304 && cache) {
+            // Cache hit - read from disk
+            const cachedPackument = await readCachedPackument(cache, encodedName);
+            if (cachedPackument) {
+              packumentVersions = cachedPackument.versions || {};
+              packumentTime = cachedPackument.time || {};
+            }
+          } else if (response.statusCode === 200) {
             const body = Buffer.concat(chunks).toString('utf8');
             const packument = JSON.parse(body);
             packumentVersions = packument.versions || {};
             packumentTime = packument.time || {};
+
+            // Write to cache if enabled
+            if (cache) {
+              await writeCache(cache, encodedName, body, {
+                etag: response.headers.etag,
+                lastModified: response.headers['last-modified']
+              });
+            }
           }
 
           // Check each version, preserving integrity/resolved from original dep
@@ -533,7 +626,8 @@ try {
       auth: values.auth,
       token: values.token,
       progress: values.progress,
-      before: values.before
+      before: values.before,
+      cache: values.cache
     });
 
     await outputCoverage(results, {
