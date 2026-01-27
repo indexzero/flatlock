@@ -286,7 +286,7 @@ async function* checkCoverage(deps, { registry, auth, token, progress }) {
 
   const packages = [...byPackage.entries()];
   let completed = 0;
-  const total = packages.length;
+  const total = deps.length;
 
   // Process in batches for bounded concurrency
   for (let i = 0; i < packages.length; i += concurrency) {
@@ -353,10 +353,10 @@ async function* checkCoverage(deps, { registry, auth, token, progress }) {
     for (const packageResults of results) {
       for (const result of packageResults) {
         yield result;
-      }
-      completed++;
-      if (progress) {
-        process.stderr.write(`\r  Checking: ${completed}/${total} packages`);
+        completed++;
+        if (progress) {
+          process.stderr.write(`\r  Checking: ${completed}/${total} package specs`);
+        }
       }
     }
   }
