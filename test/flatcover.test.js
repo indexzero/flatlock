@@ -245,7 +245,10 @@ describe('flatcover --full --cover', () => {
       // The time field allows client to determine if package was published before a given date
       // without needing to re-query the registry
       const publishTime = new Date(withTime.time);
-      assert.ok(publishTime instanceof Date && !Number.isNaN(publishTime), 'Time should be parseable as Date');
+      assert.ok(
+        publishTime instanceof Date && !Number.isNaN(publishTime),
+        'Time should be parseable as Date'
+      );
     });
   });
 });
