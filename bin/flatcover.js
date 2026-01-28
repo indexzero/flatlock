@@ -14,6 +14,7 @@
 
 import { parseArgs } from 'node:util';
 import { readFileSync } from 'node:fs';
+import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { dirname, join } from 'node:path';
@@ -37,6 +38,8 @@ const { values, positionals } = parseArgs({
     concurrency: { type: 'string', default: '20' },
     progress: { type: 'boolean', default: false },
     summary: { type: 'boolean', default: false },
+    before: { type: 'string', short: 'b' },
+    cache: { type: 'string', short: 'c' },
     help: { type: 'boolean', short: 'h' }
   },
   allowPositionals: true
@@ -67,7 +70,7 @@ Options:
   -s, --specs             Include version (name@version or {name,version})
   --json                  Output as JSON array
   --ndjson                Output as newline-delimited JSON (streaming)
-  --full                  Include all metadata (integrity, resolved)
+  --full                  Include all metadata (integrity, resolved, time)
   --dev                   Include dev dependencies (default: false)
   --peer                  Include peer dependencies (default: true)
   -h, --help              Show this help
@@ -80,13 +83,17 @@ Coverage options:
   --concurrency <n>       Concurrent requests (default: 20)
   --progress              Show progress on stderr
   --summary               Show coverage summary on stderr
+  --before <date>         Only count versions published before this ISO date
+  -c, --cache <dir>       Cache packuments to disk for faster subsequent runs
 
 Output formats (with --cover):
-  (default)               CSV: package,version,present
-  --full                  CSV: package,version,present,integrity,resolved
-  --json                  [{"name":"...","version":"...","present":true}, ...]
-  --full --json           Adds "integrity" and "resolved" fields to JSON
-  --ndjson                {"name":"...","version":"...","present":true} per line
+  (default)               CSV format (sorted by name, version)
+  --json                  JSON array (sorted by name, version)
+  --ndjson                Newline-delimited JSON (streaming, unsorted)
+
+Output fields:
+  (default)               name, version, present
+  --full                  Adds: spec, integrity, resolved, time (works with all formats)
 
 Examples:
   # From lockfile
@@ -96,6 +103,10 @@ Examples:
   # From JSON list file
   flatcover --list packages.json --cover --summary
   echo '[{"name":"lodash","version":"4.17.21"}]' > pkgs.json && flatcover -l pkgs.json --cover
+
+  # Time-travel reanalysis: capture full output with timestamps
+  flatcover package-lock.json --cover --full --json > coverage.json
+  # Later, filter locally by publication date without re-fetching registry
 
   # From stdin (NDJSON) - use '-' to read from stdin
   echo '{"name":"lodash","version":"4.17.21"}' | flatcover - --cover
@@ -218,6 +229,68 @@ function encodePackageName(name) {
 }
 
 /**
+ * Read cached packument metadata (etag, lastModified)
+ * @param {string} cacheDir - Cache directory path
+ * @param {string} encodedName - URL-encoded package name
+ * @returns {Promise<{ etag?: string, lastModified?: string } | null>}
+ */
+async function readCacheMeta(cacheDir, encodedName) {
+  try {
+    const metaPath = join(cacheDir, `${encodedName}.meta.json`);
+    const content = await readFile(metaPath, 'utf8');
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read cached packument from disk
+ * @param {string} cacheDir - Cache directory path
+ * @param {string} encodedName - URL-encoded package name
+ * @returns {Promise<object | null>}
+ */
+async function readCachedPackument(cacheDir, encodedName) {
+  try {
+    const cachePath = join(cacheDir, `${encodedName}.json`);
+    const content = await readFile(cachePath, 'utf8');
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Write packument and metadata to cache atomically
+ * @param {string} cacheDir - Cache directory path
+ * @param {string} encodedName - URL-encoded package name
+ * @param {string} body - Raw packument JSON string
+ * @param {{ etag?: string, lastModified?: string }} meta - Cache metadata
+ */
+async function writeCache(cacheDir, encodedName, body, meta) {
+  await mkdir(cacheDir, { recursive: true });
+
+  const cachePath = join(cacheDir, `${encodedName}.json`);
+  const metaPath = join(cacheDir, `${encodedName}.meta.json`);
+  const pid = process.pid;
+
+  // Write packument atomically
+  const tmpCachePath = `${cachePath}.${pid}.tmp`;
+  await writeFile(tmpCachePath, body);
+  await rename(tmpCachePath, cachePath);
+
+  // Write metadata atomically
+  const metaObj = {
+    etag: meta.etag,
+    lastModified: meta.lastModified,
+    fetchedAt: new Date().toISOString()
+  };
+  const tmpMetaPath = `${metaPath}.${pid}.tmp`;
+  await writeFile(tmpMetaPath, JSON.stringify(metaObj));
+  await rename(tmpMetaPath, metaPath);
+}
+
+/**
  * Create undici client with retry support
  * @param {string} registryUrl
  * @param {{ auth?: string, token?: string }} options
@@ -267,10 +340,10 @@ function createClient(registryUrl, { auth, token }) {
 /**
  * Check coverage for all dependencies
  * @param {Array<{ name: string, version: string, integrity?: string, resolved?: string }>} deps
- * @param {{ registry: string, auth?: string, token?: string, progress: boolean }} options
+ * @param {{ registry: string, auth?: string, token?: string, progress: boolean, before?: string, cache?: string }} options
  * @returns {AsyncGenerator<{ name: string, version: string, present: boolean, integrity?: string, resolved?: string, error?: string }>}
  */
-async function* checkCoverage(deps, { registry, auth, token, progress }) {
+async function* checkCoverage(deps, { registry, auth, token, progress, before, cache }) {
   const { client, headers, baseUrl } = createClient(registry, { auth, token });
 
   // Group by package name to avoid duplicate requests
@@ -299,10 +372,22 @@ async function* checkCoverage(deps, { registry, auth, token, progress }) {
         const path = `${basePath}/${encodedName}`;
 
         try {
+          // Build request headers, adding conditional request headers if cached
+          const reqHeaders = { ...headers };
+          let cacheMeta = null;
+          if (cache) {
+            cacheMeta = await readCacheMeta(cache, encodedName);
+            if (cacheMeta?.etag) {
+              reqHeaders['If-None-Match'] = cacheMeta.etag;
+            } else if (cacheMeta?.lastModified) {
+              reqHeaders['If-Modified-Since'] = cacheMeta.lastModified;
+            }
+          }
+
           const response = await client.request({
             method: 'GET',
             path,
-            headers
+            headers: reqHeaders
           });
 
           const chunks = [];
@@ -316,19 +401,43 @@ async function* checkCoverage(deps, { registry, auth, token, progress }) {
           }
 
           let packumentVersions = null;
-          if (response.statusCode === 200) {
+          let packumentTime = null;
+
+          if (response.statusCode === 304 && cache) {
+            // Cache hit - read from disk
+            const cachedPackument = await readCachedPackument(cache, encodedName);
+            if (cachedPackument) {
+              packumentVersions = cachedPackument.versions || {};
+              packumentTime = cachedPackument.time || {};
+            }
+          } else if (response.statusCode === 200) {
             const body = Buffer.concat(chunks).toString('utf8');
             const packument = JSON.parse(body);
             packumentVersions = packument.versions || {};
+            packumentTime = packument.time || {};
+
+            // Write to cache if enabled
+            if (cache) {
+              await writeCache(cache, encodedName, body, {
+                etag: response.headers.etag,
+                lastModified: response.headers['last-modified']
+              });
+            }
           }
 
           // Check each version, preserving integrity/resolved from original dep
           const versionResults = [];
           for (const [version, dep] of versionMap) {
-            const present = packumentVersions ? !!packumentVersions[version] : false;
+            let present = packumentVersions ? !!packumentVersions[version] : false;
+
+            // Time travel: if --before set, only count if published before that date
+            if (present && before && packumentTime[version] >= before) {
+              present = false;
+            }
             const result = { name, version, present };
             if (dep.integrity) result.integrity = dep.integrity;
             if (dep.resolved) result.resolved = dep.resolved;
+            if (packumentTime && packumentTime[version]) result.time = packumentTime[version];
             versionResults.push(result);
           }
           return versionResults;
@@ -374,7 +483,7 @@ async function* checkCoverage(deps, { registry, auth, token, progress }) {
  */
 function formatDep(dep, { specs, full }) {
   if (full) {
-    const obj = { name: dep.name, version: dep.version };
+    const obj = { name: dep.name, version: dep.version, spec: `${dep.name}@${dep.version}` };
     if (dep.integrity) obj.integrity = dep.integrity;
     if (dep.resolved) obj.resolved = dep.resolved;
     return obj;
@@ -432,8 +541,10 @@ async function outputCoverage(results, { json, ndjson, summary, full }) {
     if (ndjson) {
       // Stream immediately
       const obj = { name: result.name, version: result.version, present: result.present };
+      if (full) obj.spec = `${result.name}@${result.version}`;
       if (full && result.integrity) obj.integrity = result.integrity;
       if (full && result.resolved) obj.resolved = result.resolved;
+      if (full && result.time) obj.time = result.time;
       console.log(JSON.stringify(obj));
     } else {
       all.push(result);
@@ -447,17 +558,19 @@ async function outputCoverage(results, { json, ndjson, summary, full }) {
     if (json) {
       const data = all.map(r => {
         const obj = { name: r.name, version: r.version, present: r.present };
+        if (full) obj.spec = `${r.name}@${r.version}`;
         if (full && r.integrity) obj.integrity = r.integrity;
         if (full && r.resolved) obj.resolved = r.resolved;
+        if (full && r.time) obj.time = r.time;
         return obj;
       });
       console.log(JSON.stringify(data, null, 2));
     } else {
       // CSV output
       if (full) {
-        console.log('package,version,present,integrity,resolved');
+        console.log('package,version,spec,present,integrity,resolved,time');
         for (const r of all) {
-          console.log(`${r.name},${r.version},${r.present},${r.integrity || ''},${r.resolved || ''}`);
+          console.log(`${r.name},${r.version},${r.name}@${r.version},${r.present},${r.integrity || ''},${r.resolved || ''},${r.time || ''}`);
         }
       } else {
         console.log('package,version,present');
@@ -523,7 +636,9 @@ try {
       registry: values.registry,
       auth: values.auth,
       token: values.token,
-      progress: values.progress
+      progress: values.progress,
+      before: values.before,
+      cache: values.cache
     });
 
     await outputCoverage(results, {

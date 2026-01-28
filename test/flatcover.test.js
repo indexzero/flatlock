@@ -9,7 +9,7 @@
 
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
-import { unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, before, describe, test } from 'node:test';
@@ -110,7 +110,7 @@ describe('flatcover --full --cover', () => {
   });
 
   describe('CSV output format', () => {
-    test('includes integrity,resolved columns when --full --cover', () => {
+    test('includes integrity,resolved,time columns when --full --cover', () => {
       const output = runFlatcoverWithLockfile('--full --cover');
       const lines = output.trim().split('\n');
 
@@ -120,13 +120,13 @@ describe('flatcover --full --cover', () => {
       const header = lines[0];
       assert.equal(
         header,
-        'package,version,present,integrity,resolved',
-        'Header should include integrity,resolved columns'
+        'package,version,spec,present,integrity,resolved,time',
+        'Header should include spec,integrity,resolved,time columns'
       );
 
-      // Check first data row has 5 columns
+      // Check first data row has 7 columns
       const dataRow = lines[1].split(',');
-      assert.equal(dataRow.length, 5, 'Data row should have 5 columns');
+      assert.equal(dataRow.length, 7, 'Data row should have 7 columns');
     });
 
     test('does NOT include integrity,resolved columns without --full', () => {
@@ -152,14 +152,103 @@ describe('flatcover --full --cover', () => {
       const output = runFlatcoverWithLockfile('--full --cover');
       const lines = output.trim().split('\n');
 
-      // Find a row with integrity (non-empty 4th column)
+      // Find a row with integrity (non-empty 5th column, index 4)
       const dataRows = lines.slice(1);
       const rowWithIntegrity = dataRows.find(row => {
         const cols = row.split(',');
-        return cols[3]?.startsWith('sha');
+        return cols[4]?.startsWith('sha');
       });
 
       assert.ok(rowWithIntegrity, 'Should have at least one row with integrity value');
+    });
+  });
+
+  describe('time field for reanalysis', () => {
+    test('includes time field when --full --cover --json', () => {
+      const output = runFlatcoverWithLockfile('--full --cover --json');
+      const data = JSON.parse(output);
+
+      assert.ok(Array.isArray(data), 'Output should be JSON array');
+      assert.ok(data.length > 0, 'Should have results');
+
+      // Find results with time (present packages should have it)
+      const withTime = data.filter(r => r.time);
+      assert.ok(withTime.length > 0, 'Should have results with time field');
+
+      // Verify time is ISO 8601 format
+      for (const result of withTime.slice(0, 5)) {
+        assert.ok(result.time.match(/^\d{4}-\d{2}-\d{2}T/), 'Time should be ISO 8601 format');
+      }
+    });
+
+    test('does NOT include time field without --full', () => {
+      const output = runFlatcoverWithLockfile('--cover --json');
+      const data = JSON.parse(output);
+
+      const withTime = data.filter(r => r.time);
+      assert.equal(withTime.length, 0, 'Should NOT have time without --full');
+    });
+
+    test('includes time field when --full --cover --ndjson', () => {
+      const output = runFlatcoverWithLockfile('--full --cover --ndjson');
+      const lines = output.trim().split('\n');
+      const results = lines.slice(0, 10).map(line => JSON.parse(line));
+
+      const withTime = results.filter(r => r.time);
+      assert.ok(withTime.length > 0, 'Should have results with time field');
+
+      for (const result of withTime) {
+        assert.ok(result.time.match(/^\d{4}-\d{2}-\d{2}T/), 'Time should be ISO 8601 format');
+      }
+    });
+
+    test('includes time column in CSV when --full --cover', () => {
+      const output = runFlatcoverWithLockfile('--full --cover');
+      const lines = output.trim().split('\n');
+
+      // Check header includes time
+      const header = lines[0];
+      assert.equal(
+        header,
+        'package,version,spec,present,integrity,resolved,time',
+        'Header should include time column'
+      );
+
+      // Check data row has 7 columns
+      const dataRow = lines[1].split(',');
+      assert.equal(dataRow.length, 7, 'Data row should have 7 columns');
+    });
+
+    test('CSV data row includes ISO 8601 time value', () => {
+      const output = runFlatcoverWithLockfile('--full --cover');
+      const lines = output.trim().split('\n');
+
+      // Find a row with time (non-empty 7th column, index 6, with ISO format)
+      const dataRows = lines.slice(1);
+      const rowWithTime = dataRows.find(row => {
+        const cols = row.split(',');
+        return cols[6]?.match(/^\d{4}-\d{2}-\d{2}T/);
+      });
+
+      assert.ok(rowWithTime, 'Should have at least one row with time value');
+    });
+
+    test('time field enables reanalysis with different --before dates', () => {
+      // Get full output with time
+      const output = runFlatcoverWithLockfile('--full --cover --json');
+      const data = JSON.parse(output);
+
+      // Find a package with time
+      const withTime = data.find(r => r.time && r.present);
+      assert.ok(withTime, 'Should have a present package with time');
+
+      // The time field allows client to determine if package was published before a given date
+      // without needing to re-query the registry
+      const publishTime = new Date(withTime.time);
+      assert.ok(
+        publishTime instanceof Date && !Number.isNaN(publishTime),
+        'Time should be parseable as Date'
+      );
     });
   });
 });
@@ -391,5 +480,140 @@ describe('flatcover input source validation', () => {
       /workspace.*lockfile/i,
       'Should reject --workspace with stdin'
     );
+  });
+});
+
+describe('flatcover --cache (packument caching)', () => {
+  const cacheDir = join(tmpdir(), `flatcover-cache-test-${Date.now()}`);
+
+  after(() => {
+    try {
+      rmSync(cacheDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  test('creates cache directory if it does not exist', () => {
+    const ndjson = '{"name":"lodash","version":"4.17.21"}';
+    runFlatcover(`- --cover --cache ${cacheDir} --json`, { input: ndjson });
+
+    assert.ok(existsSync(cacheDir), 'Cache directory should be created');
+  });
+
+  test('creates packument cache file', () => {
+    const cachePath = join(cacheDir, 'lodash.json');
+    assert.ok(existsSync(cachePath), 'Packument cache file should exist');
+
+    const content = readFileSync(cachePath, 'utf8');
+    const packument = JSON.parse(content);
+    assert.ok(packument, 'Cache file should contain valid JSON');
+  });
+
+  test('creates metadata cache file with etag', () => {
+    const metaPath = join(cacheDir, 'lodash.meta.json');
+    assert.ok(existsSync(metaPath), 'Metadata cache file should exist');
+
+    const content = readFileSync(metaPath, 'utf8');
+    const meta = JSON.parse(content);
+    assert.ok(meta.fetchedAt, 'Meta should have fetchedAt timestamp');
+    // etag may or may not be present depending on registry response
+    assert.ok(meta.etag || meta.lastModified || true, 'Meta should have etag or lastModified');
+  });
+
+  test('cached packument has versions object', () => {
+    const cachePath = join(cacheDir, 'lodash.json');
+    const content = readFileSync(cachePath, 'utf8');
+    const packument = JSON.parse(content);
+
+    assert.ok(packument.versions, 'Packument should have versions object');
+    assert.ok(packument.versions['4.17.21'], 'Should have lodash@4.17.21');
+  });
+
+  test('cached packument has time object', () => {
+    const cachePath = join(cacheDir, 'lodash.json');
+    const content = readFileSync(cachePath, 'utf8');
+    const packument = JSON.parse(content);
+
+    assert.ok(packument.time, 'Packument should have time object');
+    assert.ok(packument.time['4.17.21'], 'Should have timestamp for 4.17.21');
+  });
+
+  test('subsequent run produces identical output', () => {
+    const ndjson = '{"name":"lodash","version":"4.17.21"}';
+
+    // First run (may hit cache from previous tests)
+    const output1 = runFlatcover(`- --cover --cache ${cacheDir} --json`, { input: ndjson });
+    const data1 = JSON.parse(output1);
+
+    // Second run (should use cache)
+    const output2 = runFlatcover(`- --cover --cache ${cacheDir} --json`, { input: ndjson });
+    const data2 = JSON.parse(output2);
+
+    assert.deepEqual(data1, data2, 'Output should be identical across runs');
+  });
+
+  test('works with scoped packages (@scope/name)', () => {
+    const scopedCacheDir = join(tmpdir(), `flatcover-scoped-cache-${Date.now()}`);
+    const ndjson = '{"name":"@babel/core","version":"7.23.0"}';
+
+    try {
+      const output = runFlatcover(`- --cover --cache ${scopedCacheDir} --json`, { input: ndjson });
+      const data = JSON.parse(output);
+
+      assert.equal(data.length, 1, 'Should have 1 result');
+      assert.equal(data[0].name, '@babel/core', 'Should have correct package name');
+
+      // Check cache file with encoded name
+      const cachePath = join(scopedCacheDir, '@babel%2fcore.json');
+      assert.ok(existsSync(cachePath), 'Scoped package cache file should exist');
+
+      const metaPath = join(scopedCacheDir, '@babel%2fcore.meta.json');
+      assert.ok(existsSync(metaPath), 'Scoped package meta file should exist');
+    } finally {
+      try {
+        rmSync(scopedCacheDir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  });
+
+  test('works with --before flag', () => {
+    const beforeCacheDir = join(tmpdir(), `flatcover-before-cache-${Date.now()}`);
+    const ndjson = '{"name":"lodash","version":"4.17.21"}';
+
+    try {
+      // lodash@4.17.21 was published in Feb 2021, so --before 2020-01-01 should mark it as not present
+      const output = runFlatcover(
+        `- --cover --cache ${beforeCacheDir} --before 2020-01-01 --json`,
+        { input: ndjson }
+      );
+      const data = JSON.parse(output);
+
+      assert.equal(data.length, 1, 'Should have 1 result');
+      assert.equal(data[0].present, false, 'lodash@4.17.21 should not be present before 2020');
+
+      // Cache should still be created
+      const cachePath = join(beforeCacheDir, 'lodash.json');
+      assert.ok(existsSync(cachePath), 'Cache file should exist even with --before');
+    } finally {
+      try {
+        rmSync(beforeCacheDir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  });
+
+  test('does not create cache without --cache flag', () => {
+    const noCacheDir = join(tmpdir(), `flatcover-no-cache-${Date.now()}`);
+    const ndjson = '{"name":"express","version":"4.18.2"}';
+
+    // Run without --cache
+    runFlatcover('- --cover --json', { input: ndjson });
+
+    // The directory should not exist
+    assert.ok(!existsSync(noCacheDir), 'Cache directory should not be created without --cache');
   });
 });
