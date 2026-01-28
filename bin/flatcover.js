@@ -70,7 +70,7 @@ Options:
   -s, --specs             Include version (name@version or {name,version})
   --json                  Output as JSON array
   --ndjson                Output as newline-delimited JSON (streaming)
-  --full                  Include all metadata (integrity, resolved)
+  --full                  Include all metadata (integrity, resolved, time)
   --dev                   Include dev dependencies (default: false)
   --peer                  Include peer dependencies (default: true)
   -h, --help              Show this help
@@ -87,11 +87,13 @@ Coverage options:
   -c, --cache <dir>       Cache packuments to disk for faster subsequent runs
 
 Output formats (with --cover):
-  (default)               CSV: package,version,present
-  --full                  CSV: package,version,present,integrity,resolved
-  --json                  [{"name":"...","version":"...","present":true}, ...]
-  --full --json           Adds "integrity" and "resolved" fields to JSON
-  --ndjson                {"name":"...","version":"...","present":true} per line
+  (default)               CSV format (sorted by name, version)
+  --json                  JSON array (sorted by name, version)
+  --ndjson                Newline-delimited JSON (streaming, unsorted)
+
+Output fields:
+  (default)               name, version, present
+  --full                  Adds: spec, integrity, resolved, time (works with all formats)
 
 Examples:
   # From lockfile
@@ -101,6 +103,10 @@ Examples:
   # From JSON list file
   flatcover --list packages.json --cover --summary
   echo '[{"name":"lodash","version":"4.17.21"}]' > pkgs.json && flatcover -l pkgs.json --cover
+
+  # Time-travel reanalysis: capture full output with timestamps
+  flatcover package-lock.json --cover --full --json > coverage.json
+  # Later, filter locally by publication date without re-fetching registry
 
   # From stdin (NDJSON) - use '-' to read from stdin
   echo '{"name":"lodash","version":"4.17.21"}' | flatcover - --cover
@@ -431,6 +437,7 @@ async function* checkCoverage(deps, { registry, auth, token, progress, before, c
             const result = { name, version, present };
             if (dep.integrity) result.integrity = dep.integrity;
             if (dep.resolved) result.resolved = dep.resolved;
+            if (packumentTime && packumentTime[version]) result.time = packumentTime[version];
             versionResults.push(result);
           }
           return versionResults;
@@ -476,7 +483,7 @@ async function* checkCoverage(deps, { registry, auth, token, progress, before, c
  */
 function formatDep(dep, { specs, full }) {
   if (full) {
-    const obj = { name: dep.name, version: dep.version };
+    const obj = { name: dep.name, version: dep.version, spec: `${dep.name}@${dep.version}` };
     if (dep.integrity) obj.integrity = dep.integrity;
     if (dep.resolved) obj.resolved = dep.resolved;
     return obj;
@@ -534,8 +541,10 @@ async function outputCoverage(results, { json, ndjson, summary, full }) {
     if (ndjson) {
       // Stream immediately
       const obj = { name: result.name, version: result.version, present: result.present };
+      if (full) obj.spec = `${result.name}@${result.version}`;
       if (full && result.integrity) obj.integrity = result.integrity;
       if (full && result.resolved) obj.resolved = result.resolved;
+      if (full && result.time) obj.time = result.time;
       console.log(JSON.stringify(obj));
     } else {
       all.push(result);
@@ -549,17 +558,19 @@ async function outputCoverage(results, { json, ndjson, summary, full }) {
     if (json) {
       const data = all.map(r => {
         const obj = { name: r.name, version: r.version, present: r.present };
+        if (full) obj.spec = `${r.name}@${r.version}`;
         if (full && r.integrity) obj.integrity = r.integrity;
         if (full && r.resolved) obj.resolved = r.resolved;
+        if (full && r.time) obj.time = r.time;
         return obj;
       });
       console.log(JSON.stringify(data, null, 2));
     } else {
       // CSV output
       if (full) {
-        console.log('package,version,present,integrity,resolved');
+        console.log('package,version,spec,present,integrity,resolved,time');
         for (const r of all) {
-          console.log(`${r.name},${r.version},${r.present},${r.integrity || ''},${r.resolved || ''}`);
+          console.log(`${r.name},${r.version},${r.name}@${r.version},${r.present},${r.integrity || ''},${r.resolved || ''},${r.time || ''}`);
         }
       } else {
         console.log('package,version,present');

@@ -110,7 +110,7 @@ describe('flatcover --full --cover', () => {
   });
 
   describe('CSV output format', () => {
-    test('includes integrity,resolved columns when --full --cover', () => {
+    test('includes integrity,resolved,time columns when --full --cover', () => {
       const output = runFlatcoverWithLockfile('--full --cover');
       const lines = output.trim().split('\n');
 
@@ -120,13 +120,13 @@ describe('flatcover --full --cover', () => {
       const header = lines[0];
       assert.equal(
         header,
-        'package,version,present,integrity,resolved',
-        'Header should include integrity,resolved columns'
+        'package,version,spec,present,integrity,resolved,time',
+        'Header should include spec,integrity,resolved,time columns'
       );
 
-      // Check first data row has 5 columns
+      // Check first data row has 7 columns
       const dataRow = lines[1].split(',');
-      assert.equal(dataRow.length, 5, 'Data row should have 5 columns');
+      assert.equal(dataRow.length, 7, 'Data row should have 7 columns');
     });
 
     test('does NOT include integrity,resolved columns without --full', () => {
@@ -152,14 +152,100 @@ describe('flatcover --full --cover', () => {
       const output = runFlatcoverWithLockfile('--full --cover');
       const lines = output.trim().split('\n');
 
-      // Find a row with integrity (non-empty 4th column)
+      // Find a row with integrity (non-empty 5th column, index 4)
       const dataRows = lines.slice(1);
       const rowWithIntegrity = dataRows.find(row => {
         const cols = row.split(',');
-        return cols[3]?.startsWith('sha');
+        return cols[4]?.startsWith('sha');
       });
 
       assert.ok(rowWithIntegrity, 'Should have at least one row with integrity value');
+    });
+  });
+
+  describe('time field for reanalysis', () => {
+    test('includes time field when --full --cover --json', () => {
+      const output = runFlatcoverWithLockfile('--full --cover --json');
+      const data = JSON.parse(output);
+
+      assert.ok(Array.isArray(data), 'Output should be JSON array');
+      assert.ok(data.length > 0, 'Should have results');
+
+      // Find results with time (present packages should have it)
+      const withTime = data.filter(r => r.time);
+      assert.ok(withTime.length > 0, 'Should have results with time field');
+
+      // Verify time is ISO 8601 format
+      for (const result of withTime.slice(0, 5)) {
+        assert.ok(result.time.match(/^\d{4}-\d{2}-\d{2}T/), 'Time should be ISO 8601 format');
+      }
+    });
+
+    test('does NOT include time field without --full', () => {
+      const output = runFlatcoverWithLockfile('--cover --json');
+      const data = JSON.parse(output);
+
+      const withTime = data.filter(r => r.time);
+      assert.equal(withTime.length, 0, 'Should NOT have time without --full');
+    });
+
+    test('includes time field when --full --cover --ndjson', () => {
+      const output = runFlatcoverWithLockfile('--full --cover --ndjson');
+      const lines = output.trim().split('\n');
+      const results = lines.slice(0, 10).map(line => JSON.parse(line));
+
+      const withTime = results.filter(r => r.time);
+      assert.ok(withTime.length > 0, 'Should have results with time field');
+
+      for (const result of withTime) {
+        assert.ok(result.time.match(/^\d{4}-\d{2}-\d{2}T/), 'Time should be ISO 8601 format');
+      }
+    });
+
+    test('includes time column in CSV when --full --cover', () => {
+      const output = runFlatcoverWithLockfile('--full --cover');
+      const lines = output.trim().split('\n');
+
+      // Check header includes time
+      const header = lines[0];
+      assert.equal(
+        header,
+        'package,version,spec,present,integrity,resolved,time',
+        'Header should include time column'
+      );
+
+      // Check data row has 7 columns
+      const dataRow = lines[1].split(',');
+      assert.equal(dataRow.length, 7, 'Data row should have 7 columns');
+    });
+
+    test('CSV data row includes ISO 8601 time value', () => {
+      const output = runFlatcoverWithLockfile('--full --cover');
+      const lines = output.trim().split('\n');
+
+      // Find a row with time (non-empty 7th column, index 6, with ISO format)
+      const dataRows = lines.slice(1);
+      const rowWithTime = dataRows.find(row => {
+        const cols = row.split(',');
+        return cols[6]?.match(/^\d{4}-\d{2}-\d{2}T/);
+      });
+
+      assert.ok(rowWithTime, 'Should have at least one row with time value');
+    });
+
+    test('time field enables reanalysis with different --before dates', () => {
+      // Get full output with time
+      const output = runFlatcoverWithLockfile('--full --cover --json');
+      const data = JSON.parse(output);
+
+      // Find a package with time
+      const withTime = data.find(r => r.time && r.present);
+      assert.ok(withTime, 'Should have a present package with time');
+
+      // The time field allows client to determine if package was published before a given date
+      // without needing to re-query the registry
+      const publishTime = new Date(withTime.time);
+      assert.ok(publishTime instanceof Date && !isNaN(publishTime), 'Time should be parseable as Date');
     });
   });
 });
