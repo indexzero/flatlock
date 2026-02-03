@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-02-03
+
+### 🆕 Added
+- **Time-travel coverage analysis**: Filter versions by publication date for historical analysis
+  - `--before <date>`: Only count versions published before an ISO date
+  - Enables reproducing past coverage states without modifying lockfiles
+  ```bash
+  # Analyze what coverage looked like on Jan 1st, 2026
+  flatcover package-lock.json --cover --before 2026-01-01
+  ```
+- **Packument caching**: Cache registry responses to disk for faster subsequent runs
+  - `-c, --cache <dir>`: Cache packuments with HTTP conditional requests
+  - Uses ETag/If-None-Match and Last-Modified/If-Modified-Since headers
+  - Enables efficient re-analysis across multiple `--before` dates
+  ```bash
+  # First run fetches and caches packuments
+  flatcover package-lock.json --cover --cache .flatcover-cache
+  # Subsequent runs use cached data with conditional requests
+  flatcover package-lock.json --cover --cache .flatcover-cache --before 2026-01-15
+  ```
+- **Extended `--full` output**: New fields for all output formats (CSV, JSON, NDJSON)
+  - `time`: ISO timestamp when each version was published
+  - `spec`: Convenience field with `name@version` format
+
+### 🚧 Changed
+- `--progress` now reports package count instead of package spec count for more accurate progress indication
+
 ## [1.4.0] - 2026-01-18
 
 ### 🔒 Security
@@ -132,7 +159,8 @@ Initial release of flatlock - the Matlock of lockfile parsers.
 - Designed for use cases that need package enumeration without dependency resolution: SBOM generation, vulnerability scanning, license compliance, integrity verification
 - For full dependency tree analysis ("why is X installed?"), use `@npmcli/arborist` instead
 
-[unreleased]: https://github.com/indexzero/flatlock/compare/v1.4.0...HEAD
+[unreleased]: https://github.com/indexzero/flatlock/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/indexzero/flatlock/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/indexzero/flatlock/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/indexzero/flatlock/compare/1.2.0...v1.3.0
 [1.2.0]: https://github.com/indexzero/flatlock/compare/1.1.0...1.2.0
