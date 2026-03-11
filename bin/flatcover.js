@@ -14,11 +14,10 @@
 
 import { parseArgs } from 'node:util';
 import { readFileSync } from 'node:fs';
-import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
-import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { dirname, join } from 'node:path';
 import { Pool, RetryAgent } from 'undici';
+import { PackumentCache, defaultCacheDir } from '@_all_docs/cache';
 import { FlatlockSet } from '../src/set.js';
 
 const { values, positionals } = parseArgs({
@@ -40,6 +39,7 @@ const { values, positionals } = parseArgs({
     summary: { type: 'boolean', default: false },
     before: { type: 'string', short: 'b' },
     cache: { type: 'string', short: 'c' },
+    'no-cache': { type: 'boolean', default: false },
     help: { type: 'boolean', short: 'h' }
   },
   allowPositionals: true
@@ -84,7 +84,8 @@ Coverage options:
   --progress              Show progress on stderr
   --summary               Show coverage summary on stderr
   --before <date>         Only count versions published before this ISO date
-  -c, --cache <dir>       Cache packuments to disk for faster subsequent runs
+  -c, --cache <dir>       Override cache directory (default: platform-specific)
+  --no-cache              Disable packument caching
 
 Output formats (with --cover):
   (default)               CSV format (sorted by name, version)
@@ -229,68 +230,6 @@ function encodePackageName(name) {
 }
 
 /**
- * Read cached packument metadata (etag, lastModified)
- * @param {string} cacheDir - Cache directory path
- * @param {string} encodedName - URL-encoded package name
- * @returns {Promise<{ etag?: string, lastModified?: string } | null>}
- */
-async function readCacheMeta(cacheDir, encodedName) {
-  try {
-    const metaPath = join(cacheDir, `${encodedName}.meta.json`);
-    const content = await readFile(metaPath, 'utf8');
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Read cached packument from disk
- * @param {string} cacheDir - Cache directory path
- * @param {string} encodedName - URL-encoded package name
- * @returns {Promise<object | null>}
- */
-async function readCachedPackument(cacheDir, encodedName) {
-  try {
-    const cachePath = join(cacheDir, `${encodedName}.json`);
-    const content = await readFile(cachePath, 'utf8');
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Write packument and metadata to cache atomically
- * @param {string} cacheDir - Cache directory path
- * @param {string} encodedName - URL-encoded package name
- * @param {string} body - Raw packument JSON string
- * @param {{ etag?: string, lastModified?: string }} meta - Cache metadata
- */
-async function writeCache(cacheDir, encodedName, body, meta) {
-  await mkdir(cacheDir, { recursive: true });
-
-  const cachePath = join(cacheDir, `${encodedName}.json`);
-  const metaPath = join(cacheDir, `${encodedName}.meta.json`);
-  const pid = process.pid;
-
-  // Write packument atomically
-  const tmpCachePath = `${cachePath}.${pid}.tmp`;
-  await writeFile(tmpCachePath, body);
-  await rename(tmpCachePath, cachePath);
-
-  // Write metadata atomically
-  const metaObj = {
-    etag: meta.etag,
-    lastModified: meta.lastModified,
-    fetchedAt: new Date().toISOString()
-  };
-  const tmpMetaPath = `${metaPath}.${pid}.tmp`;
-  await writeFile(tmpMetaPath, JSON.stringify(metaObj));
-  await rename(tmpMetaPath, metaPath);
-}
-
-/**
  * Create undici client with retry support
  * @param {string} registryUrl
  * @param {{ auth?: string, token?: string }} options
@@ -340,7 +279,7 @@ function createClient(registryUrl, { auth, token }) {
 /**
  * Check coverage for all dependencies
  * @param {Array<{ name: string, version: string, integrity?: string, resolved?: string }>} deps
- * @param {{ registry: string, auth?: string, token?: string, progress: boolean, before?: string, cache?: string }} options
+ * @param {{ registry: string, auth?: string, token?: string, progress: boolean, before?: string, cache?: PackumentCache | null }} options
  * @returns {AsyncGenerator<{ name: string, version: string, present: boolean, integrity?: string, resolved?: string, error?: string }>}
  */
 async function* checkCoverage(deps, { registry, auth, token, progress, before, cache }) {
@@ -372,16 +311,23 @@ async function* checkCoverage(deps, { registry, auth, token, progress, before, c
         const path = `${basePath}/${encodedName}`;
 
         try {
-          // Build request headers, adding conditional request headers if cached
-          const reqHeaders = { ...headers };
-          let cacheMeta = null;
+          // Read cache entry once (swallow errors -- cache failures must not prevent HTTP)
+          let cachedEntry = null;
           if (cache) {
-            cacheMeta = await readCacheMeta(cache, encodedName);
-            if (cacheMeta?.etag) {
-              reqHeaders['If-None-Match'] = cacheMeta.etag;
-            } else if (cacheMeta?.lastModified) {
-              reqHeaders['If-Modified-Since'] = cacheMeta.lastModified;
+            try {
+              cachedEntry = await cache.get(name);
+            } catch {
+              // Cache read failed; proceed without cache
             }
+          }
+
+          // Build request headers, adding conditional headers from cached entry
+          const reqHeaders = { ...headers };
+          if (cachedEntry?.etag) {
+            reqHeaders['if-none-match'] = cachedEntry.etag;
+          }
+          if (cachedEntry?.lastModified) {
+            reqHeaders['if-modified-since'] = cachedEntry.lastModified;
           }
 
           const response = await client.request({
@@ -403,25 +349,29 @@ async function* checkCoverage(deps, { registry, auth, token, progress, before, c
           let packumentVersions = null;
           let packumentTime = null;
 
-          if (response.statusCode === 304 && cache) {
-            // Cache hit - read from disk
-            const cachedPackument = await readCachedPackument(cache, encodedName);
-            if (cachedPackument) {
-              packumentVersions = cachedPackument.versions || {};
-              packumentTime = cachedPackument.time || {};
-            }
+          if (response.statusCode === 304 && cachedEntry) {
+            // 304 Not Modified -- reuse the cached entry (already deserialized above)
+            const packument = cachedEntry.body;
+            packumentVersions = packument.versions || {};
+            packumentTime = packument.time || {};
           } else if (response.statusCode === 200) {
             const body = Buffer.concat(chunks).toString('utf8');
             const packument = JSON.parse(body);
             packumentVersions = packument.versions || {};
             packumentTime = packument.time || {};
 
-            // Write to cache if enabled
+            // Write to cache (swallow errors -- cache write failures are non-fatal)
             if (cache) {
-              await writeCache(cache, encodedName, body, {
-                etag: response.headers.etag,
-                lastModified: response.headers['last-modified']
-              });
+              try {
+                await cache.put(name, {
+                  statusCode: 200,
+                  headers: response.headers,
+                  body: packument,
+                  bodyRaw: body
+                });
+              } catch {
+                // Cache write failed; continue without caching
+              }
             }
           }
 
@@ -630,6 +580,24 @@ try {
   }
 
   if (values.cover) {
+    // Initialize packument cache for cover mode
+    let packumentCache = null;
+    if (!values['no-cache']) {
+      try {
+        const cacheDir = values.cache || defaultCacheDir();
+        packumentCache = new PackumentCache({
+          cacheDir,
+          origin: values.registry
+        });
+        // Eagerly initialize to surface dependency/permission errors early
+        await packumentCache._ensureInitialized();
+      } catch (err) {
+        packumentCache = null;
+        if (values.cache) throw err;
+        process.stderr.write(`Warning: Cache init failed, continuing without cache: ${err.message}\n`);
+      }
+    }
+
     // Coverage mode
     const sorted = [...deps].sort((a, b) => a.name.localeCompare(b.name));
     const results = checkCoverage(sorted, {
@@ -638,7 +606,7 @@ try {
       token: values.token,
       progress: values.progress,
       before: values.before,
-      cache: values.cache
+      cache: packumentCache
     });
 
     await outputCoverage(results, {

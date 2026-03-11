@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🆕 Added
+- **Shared packument cache with `@_all_docs/cache`**: Packument caching is now enabled by default using the `@_all_docs/cache` library with origin-keyed entries and content-addressable storage via cacache.
+  - **Default caching**: Packuments are cached automatically to `~/Library/Caches/_all_docs` (macOS) or `~/.cache/_all_docs` (Linux). No `--cache` flag required.
+  - **Origin isolation**: Packuments from different registries (npm, Chainguard, etc.) are stored separately using origin-encoded cache keys.
+  - **Interop with `_all_docs`**: Packuments cached by `_all_docs packument fetch-list` are reusable by `flatcover --cover` and vice versa.
+  - `--no-cache`: Disable caching entirely.
+  - `-c, --cache <dir>`: Override the default cache directory.
+  - `ALLDOCS_CACHE_DIR` env var: Set custom cache directory (highest precedence after CLI flag).
+
+### 🚧 Changed
+- **BREAKING**: `--cache <dir>` no longer creates flat `.json`/`.meta.json` sidecar files. Cache entries are stored in cacache's content-addressable format. Existing caches from v1.5.0 are ignored (fresh start).
+- Cache write failures are now non-fatal (logged to stderr as warnings).
+
+### 🗑️ Removed
+- Bespoke cache implementation (`readCacheMeta`, `readCachedPackument`, `writeCache`) replaced by `@_all_docs/cache` PackumentCache API.
+
 ## [1.5.0] - 2026-02-03
 
 ### 🆕 Added

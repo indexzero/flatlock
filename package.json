@@ -61,8 +61,10 @@
     "prepublishOnly": "pnpm run build:types"
   },
   "dependencies": {
+    "@_all_docs/cache": "link:../../_all_docs/src/cache",
     "@yarnpkg/lockfile": "^1.1.0",
     "@yarnpkg/parsers": "^3.0.3",
+    "cacache": "^18.0.0",
     "js-yaml": "^4.1.1",
     "undici": "^7.0.0"
   },
