@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises';
 import { parseSyml } from '@yarnpkg/parsers';
-import yaml from 'js-yaml';
 import { detectType, Type } from './detect.js';
 import {
   buildNpmWorkspacePackages,
@@ -13,6 +12,7 @@ import {
   fromPnpmLock,
   fromYarnBerryLock,
   fromYarnClassicLock,
+  parsePnpmYaml,
   parseYarnBerryKey,
   parseYarnClassic,
   parseYarnClassicKey
@@ -195,7 +195,7 @@ export class FlatlockSet {
       }
       case Type.PNPM: {
         /** @type {any} */
-        const lockfile = yaml.load(content);
+        const lockfile = parsePnpmYaml(content);
         packages = lockfile.packages || {};
         importers = lockfile.importers || null;
         snapshots = lockfile.snapshots || null;
