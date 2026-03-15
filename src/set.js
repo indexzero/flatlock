@@ -10,9 +10,9 @@ import {
   extractYarnBerryWorkspacePaths,
   fromPackageLock,
   fromPnpmLock,
-  parsePnpmYaml,
   fromYarnBerryLock,
   fromYarnClassicLock,
+  parsePnpmYaml,
   parseYarnBerryKey,
   parseYarnClassic,
   parseYarnClassicKey

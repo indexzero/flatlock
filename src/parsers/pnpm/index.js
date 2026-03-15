@@ -280,7 +280,7 @@ export function* fromPnpmLock(input, _options = {}) {
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const resolution = (pkg && pkg.resolution) || {};
+    const resolution = pkg?.resolution || {};
     const integrity = resolution.integrity;
     const resolved = resolution.tarball;
     const link = spec.startsWith('link:') || resolution.type === 'directory';
