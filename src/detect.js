@@ -61,25 +61,35 @@ function tryParseYarnClassic(content) {
 
     const result = parseYarnClassic(content);
     // Must parse successfully and NOT have __metadata (that's berry)
-    // Must have at least one package entry (not empty object)
     const isValidResult = result.type === 'success' || result.type === 'merge';
-    const hasEntries = result.object && Object.keys(result.object).length > 0;
-    const notBerry = !('__metadata' in result.object);
+    const hasObject = result.object && typeof result.object === 'object';
+    const notBerry = hasObject && !('__metadata' in result.object);
+    // Must have entries OR start with the yarn lockfile header comment
+    const hasEntries = hasObject && Object.keys(result.object).length > 0;
+    const firstLines = content.split('\n', 5).join('\n');
+    const hasYarnHeader = /^# yarn lockfile v1/m.test(firstLines);
 
-    return isValidResult && hasEntries && notBerry;
+    return isValidResult && hasObject && notBerry && (hasEntries || hasYarnHeader);
   } catch {
     return false;
   }
 }
 
 /**
- * Try to parse content as pnpm lockfile
+ * Try to parse content as pnpm lockfile.
+ *
+ * Only parses the YAML header (first 20 lines) to check for lockfileVersion.
+ * This avoids failures on truncated lockfiles where the body is incomplete
+ * but the header is valid.
+ *
  * @param {string} content
  * @returns {boolean}
  */
 function tryParsePnpm(content) {
   try {
-    const parsed = yaml.load(content);
+    // Parse only the header to tolerate truncated lockfiles
+    const header = content.split('\n', 20).join('\n');
+    const parsed = yaml.load(header);
     // Must have lockfileVersion at root and NOT have __metadata
     // biome-ignore format: preserve multiline logical expression
     return !!(parsed

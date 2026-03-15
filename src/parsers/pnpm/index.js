@@ -194,6 +194,36 @@ export function parseLockfileKey(key) {
 }
 
 /**
+ * Parse pnpm YAML content, tolerating truncated files.
+ *
+ * pnpm lockfiles use inline flow collections like `{integrity: sha512-...}`
+ * which cause js-yaml to throw if the file is truncated mid-entry. When that
+ * happens, we progressively trim trailing lines until parsing succeeds.
+ *
+ * @param {string} content - YAML content
+ * @returns {Record<string, any>} Parsed lockfile object
+ */
+export function parsePnpmYaml(content) {
+  try {
+    return yaml.load(content);
+  } catch {
+    // Truncated file — trim lines from the end until yaml.load succeeds.
+    // Most truncations break an incomplete flow collection near the end,
+    // so we only need to trim a handful of lines.
+    const lines = content.split('\n');
+    for (let trim = 1; trim < Math.min(20, lines.length); trim++) {
+      try {
+        return yaml.load(lines.slice(0, -trim).join('\n'));
+      } catch {
+        // keep trimming
+      }
+    }
+    // If trimming didn't help, re-throw the original error
+    throw yaml.load(content);
+  }
+}
+
+/**
  * Parse pnpm lockfile (shrinkwrap.yaml, pnpm-lock.yaml v5.x, v6, v9)
  *
  * @param {string | object} input - Lockfile content string or pre-parsed object
@@ -211,7 +241,7 @@ export function parseLockfileKey(key) {
  */
 export function* fromPnpmLock(input, _options = {}) {
   const lockfile = /** @type {Record<string, any>} */ (
-    typeof input === 'string' ? yaml.load(input) : input
+    typeof input === 'string' ? parsePnpmYaml(input) : input
   );
 
   // Detect version to determine where to look for packages
@@ -250,7 +280,7 @@ export function* fromPnpmLock(input, _options = {}) {
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const resolution = pkg.resolution || {};
+    const resolution = (pkg && pkg.resolution) || {};
     const integrity = resolution.integrity;
     const resolved = resolution.tarball;
     const link = spec.startsWith('link:') || resolution.type === 'directory';
@@ -315,7 +345,7 @@ export function* fromPnpmLock(input, _options = {}) {
  */
 export function extractWorkspacePaths(input) {
   const lockfile = /** @type {Record<string, any>} */ (
-    typeof input === 'string' ? yaml.load(input) : input
+    typeof input === 'string' ? parsePnpmYaml(input) : input
   );
 
   const importers = lockfile.importers || {};

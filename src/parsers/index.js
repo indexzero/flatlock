@@ -12,7 +12,8 @@ export {
   buildWorkspacePackages as buildPnpmWorkspacePackages,
   extractWorkspacePaths as extractPnpmWorkspacePaths,
   fromPnpmLock,
-  parseLockfileKey as parsePnpmKey
+  parseLockfileKey as parsePnpmKey,
+  parsePnpmYaml
 } from './pnpm.js';
 export {
   buildWorkspacePackages as buildYarnBerryWorkspacePackages,
