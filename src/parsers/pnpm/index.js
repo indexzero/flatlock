@@ -205,7 +205,7 @@ export function parseLockfileKey(key) {
  */
 export function parsePnpmYaml(content) {
   try {
-    return yaml.load(content);
+    return /** @type {Record<string, any>} */ (yaml.load(content));
   } catch {
     // Truncated file — trim lines from the end until yaml.load succeeds.
     // Most truncations break an incomplete flow collection near the end,
@@ -213,7 +213,7 @@ export function parsePnpmYaml(content) {
     const lines = content.split('\n');
     for (let trim = 1; trim < Math.min(20, lines.length); trim++) {
       try {
-        return yaml.load(lines.slice(0, -trim).join('\n'));
+        return /** @type {Record<string, any>} */ (yaml.load(lines.slice(0, -trim).join('\n')));
       } catch {
         // keep trimming
       }
