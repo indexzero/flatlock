@@ -99,26 +99,60 @@ async function setupAndInstall(packageName, version) {
 }
 
 /**
+ * Resolve the cyclonedx-npm binary once, installing if needed.
+ * Avoids repeated npx invocations that race on the shared npx cache.
+ * @returns {Promise<string>} Absolute path to cyclonedx-npm-cli.js
+ */
+let _cyclonedxBin;
+async function getCycloneDXBin() {
+  if (_cyclonedxBin) return _cyclonedxBin;
+
+  // Try to resolve from node_modules first (e.g. if installed as devDep)
+  try {
+    const result = await x('node', [
+      '-e',
+      'console.log(require.resolve("@cyclonedx/cyclonedx-npm/bin/cyclonedx-npm-cli.js"))'
+    ]);
+    if (result.exitCode === 0 && result.stdout.trim()) {
+      _cyclonedxBin = result.stdout.trim();
+      return _cyclonedxBin;
+    }
+  } catch {
+    // fall through to npx install
+  }
+
+  // Install once into a temp prefix and resolve the binary
+  const prefix = join(tmpdir(), 'flatlock-cyclonedx');
+  const install = await x('npm', ['install', '--prefix', prefix, '@cyclonedx/cyclonedx-npm']);
+  if (install.exitCode !== 0) {
+    throw new Error(`Failed to install @cyclonedx/cyclonedx-npm: ${install.stderr}`);
+  }
+  _cyclonedxBin = join(
+    prefix,
+    'node_modules',
+    '@cyclonedx',
+    'cyclonedx-npm',
+    'bin',
+    'cyclonedx-npm-cli.js'
+  );
+  return _cyclonedxBin;
+}
+
+/**
  * Run CycloneDX on a directory
  * @param {string} dir
  * @param {{ lockfileOnly?: boolean }} options
  * @returns {Promise<Set<string>>} Set of name@version strings
  */
 async function runCycloneDX(dir, { lockfileOnly = false } = {}) {
-  const args = [
-    '@cyclonedx/cyclonedx-npm',
-    '--output-format',
-    'JSON',
-    '--flatten-components',
-    '--omit',
-    'dev'
-  ];
+  const bin = await getCycloneDXBin();
+  const args = [bin, '--output-format', 'JSON', '--flatten-components', '--omit', 'dev'];
 
   if (lockfileOnly) {
     args.push('--package-lock-only');
   }
 
-  const result = await x('npx', args, {
+  const result = await x('node', args, {
     nodeOptions: { cwd: dir }
   });
 
@@ -217,7 +251,8 @@ export async function getParityResults(packageName, version) {
   const tmpDir = await setupAndInstall(packageName, version);
 
   try {
-    // Run both on the same lockfile
+    // Run all three in parallel — safe now that CycloneDX uses a
+    // pre-resolved binary instead of npx.
     const [cyclonedxLockfile, cyclonedxNodeModules, flatlock] = await Promise.all([
       runCycloneDX(tmpDir, { lockfileOnly: true }),
       runCycloneDX(tmpDir, { lockfileOnly: false }),
