@@ -47,8 +47,11 @@
     "bin/flatcover.js"
   ],
   "scripts": {
-    "test": "node --test ./test/*.test.js ./test/**/*.test.js",
-    "test:coverage": "c8 node --test ./test/*.test.js",
+    "pretest": "node test/fixtures/decode.js",
+    "pretest:coverage": "node test/fixtures/decode.js",
+    "test": "node --test ./test/*.test.js ./test/parsers/*.test.js",
+    "test:coverage": "c8 node --test ./test/*.test.js ./test/parsers/*.test.js",
+    "test:all": "node --test ./test/*.test.js ./test/**/*.test.js",
     "build:types": "tsc",
     "lint": "biome lint src test",
     "lint:fix": "biome lint --write src test",
