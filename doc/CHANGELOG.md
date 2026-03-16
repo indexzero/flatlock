@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-03-16
+
+### 🐛 Fixed
+- **Truncated pnpm lockfiles**: Files cut off mid-YAML flow collection (e.g., incomplete `{integrity: sha512-...}`) no longer crash detection or parsing. Detection parses only the YAML header; the parser progressively trims trailing lines until `yaml.load` succeeds. (#17)
+- **Empty yarn.lock files**: Header-only yarn.lock files (e.g., from `yarn init`) are now correctly detected as `yarn-classic` instead of throwing "Unable to detect lockfile type". (#17)
+
+### 🚧 Changed
+- **Test infrastructure**: CycloneDX parity tests resolve the `cyclonedx-npm` binary once instead of calling `npx` per invocation, eliminating flaky `ENOTEMPTY` failures from concurrent npx cache writes. (#18)
+- **CI coverage**: `test:coverage` now includes `test/parsers/*.test.js` (previously only top-level tests ran in CI). Fixture decoding runs automatically via `pretest`/`pretest:coverage` hooks. (#18)
+- **`test:all` script**: New script for running the full suite including verification and monorepo tests locally.
+
 ## [1.5.0] - 2026-02-03
 
 ### 🆕 Added
