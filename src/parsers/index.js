@@ -5,6 +5,7 @@
 export {
   buildWorkspacePackages as buildNpmWorkspacePackages,
   extractWorkspacePaths as extractNpmWorkspacePaths,
+  fromDependenciesTree,
   fromPackageLock,
   parseLockfileKey as parseNpmKey
 } from './npm.js';

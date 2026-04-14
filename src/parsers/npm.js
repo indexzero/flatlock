@@ -122,6 +122,12 @@ export function parseLockfileKey(path) {
 
 /**
  * Parse npm package-lock.json (v1, v2, v3)
+ *
+ * v2/v3 lockfiles use the `packages` map (flat, path-keyed).
+ * v1 lockfiles use the `dependencies` tree (nested, name-keyed).
+ * When `packages` is empty or absent and `dependencies` exists,
+ * falls back to `fromDependenciesTree`.
+ *
  * @param {string | object} input - Lockfile content string or pre-parsed object
  * @param {Object} [_options] - Parser options (unused, reserved for future use)
  * @returns {Generator<Dependency>}
@@ -129,6 +135,21 @@ export function parseLockfileKey(path) {
 export function* fromPackageLock(input, _options = {}) {
   const lockfile = typeof input === 'string' ? JSON.parse(input) : input;
   const packages = lockfile.packages || {};
+
+  // Check if the packages map has any non-root entries
+  let hasPackageEntries = false;
+  for (const path of Object.keys(packages)) {
+    if (path !== '') {
+      hasPackageEntries = true;
+      break;
+    }
+  }
+
+  // v1 fallback: no packages entries but has dependencies tree
+  if (!hasPackageEntries && lockfile.dependencies) {
+    yield* fromDependenciesTree(lockfile);
+    return;
+  }
 
   for (const [path, pkg] of Object.entries(packages)) {
     // Skip root package
@@ -151,6 +172,56 @@ export function* fromPackageLock(input, _options = {}) {
       if (resolved) dep.resolved = resolved;
       if (link) dep.link = true;
       yield dep;
+    }
+  }
+}
+
+/**
+ * Parse npm lockfileVersion 1 dependencies tree.
+ *
+ * v1 lockfiles store dependencies as a nested object tree where each key
+ * is a package name and each value contains { version, resolved, integrity,
+ * requires, dependencies }. Nested `dependencies` represent version conflicts
+ * that couldn't be hoisted.
+ *
+ * @param {string | object} input - Lockfile content string or pre-parsed object
+ * @param {Object} [_options] - Parser options (unused, reserved for future use)
+ * @returns {Generator<Dependency>}
+ */
+export function* fromDependenciesTree(input, _options = {}) {
+  const lockfile = typeof input === 'string' ? JSON.parse(input) : input;
+  const dependencies = lockfile.dependencies;
+  if (!dependencies) return;
+
+  // Iterative depth-first walk to avoid stack overflow on deep trees
+  /** @type {Array<[string, object]>} */
+  const stack = [];
+
+  // Push in reverse order so first entries are yielded first
+  const topLevel = Object.entries(dependencies);
+  for (let i = topLevel.length - 1; i >= 0; i--) {
+    stack.push(topLevel[i]);
+  }
+
+  while (stack.length > 0) {
+    const [name, info] = /** @type {[string, any]} */ (stack.pop());
+    const { version, integrity, resolved } = info;
+
+    if (name && version) {
+      /** @type {Dependency} */
+      const dep = { name, version };
+      if (integrity) dep.integrity = integrity;
+      if (resolved) dep.resolved = resolved;
+      yield dep;
+    }
+
+    // Push nested dependencies (conflict resolution overrides)
+    const nested = info.dependencies;
+    if (nested) {
+      const entries = Object.entries(nested);
+      for (let i = entries.length - 1; i >= 0; i--) {
+        stack.push(entries[i]);
+      }
     }
   }
 }

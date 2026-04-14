@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🆕 Added
+- **npm lockfileVersion 1 support**: `fromPackageLock` now parses v1 lockfiles by falling back to a new `fromDependenciesTree` generator when the `packages` map is absent. v1 lockfiles use a nested `dependencies` tree instead of the flat `packages` map — `fromDependenciesTree` walks the tree iteratively and yields the same `Dependency` shape. The README already claimed v1 support; the parser now delivers on it.
+
 ## [1.5.1] - 2026-03-16
 
 ### 🐛 Fixed

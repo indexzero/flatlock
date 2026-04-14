@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { detectType, Type } from './detect.js';
 import {
+  fromDependenciesTree,
   fromPackageLock,
   fromPnpmLock,
   fromYarnBerryLock,
@@ -25,7 +26,13 @@ export { Type, detectType };
 export { Ok, Err };
 
 // Re-export individual parsers
-export { fromPackageLock, fromPnpmLock, fromYarnClassicLock, fromYarnBerryLock };
+export {
+  fromDependenciesTree,
+  fromPackageLock,
+  fromPnpmLock,
+  fromYarnClassicLock,
+  fromYarnBerryLock
+};
 
 // Re-export FlatlockSet class
 export { FlatlockSet };
