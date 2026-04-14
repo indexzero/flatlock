@@ -1,11 +1,16 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
-
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+  workflow_dispatch:
+    inputs:
+      increment:
+        description: 'Version increment'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 permissions: {}
 
@@ -36,6 +41,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Release
-        run: pnpm release --ci
+        run: pnpm exec release-it --ci --increment ${{ inputs.increment }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

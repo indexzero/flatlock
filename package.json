@@ -62,7 +62,7 @@
     "check:fix": "biome check --write src test",
     "build:ncc": "./bin/ncc.sh",
     "prepublishOnly": "pnpm run build:types",
-    "release": "release-it"
+    "release": "gh workflow run release.yml --repo indexzero/flatlock -f increment="
   },
   "dependencies": {
     "@yarnpkg/lockfile": "^1.1.0",
