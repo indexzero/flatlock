@@ -173,10 +173,11 @@ Initial release of flatlock - the Matlock of lockfile parsers.
 - Designed for use cases that need package enumeration without dependency resolution: SBOM generation, vulnerability scanning, license compliance, integrity verification
 - For full dependency tree analysis ("why is X installed?"), use `@npmcli/arborist` instead
 
-[unreleased]: https://github.com/indexzero/flatlock/compare/v1.5.0...HEAD
-[1.5.0]: https://github.com/indexzero/flatlock/compare/v1.4.0...v1.5.0
-[1.4.0]: https://github.com/indexzero/flatlock/compare/v1.3.0...v1.4.0
-[1.3.0]: https://github.com/indexzero/flatlock/compare/1.2.0...v1.3.0
+[unreleased]: https://github.com/indexzero/flatlock/compare/1.5.1...HEAD
+[1.5.1]: https://github.com/indexzero/flatlock/compare/1.5.0...1.5.1
+[1.5.0]: https://github.com/indexzero/flatlock/compare/1.4.0...1.5.0
+[1.4.0]: https://github.com/indexzero/flatlock/compare/1.3.0...1.4.0
+[1.3.0]: https://github.com/indexzero/flatlock/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/indexzero/flatlock/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/indexzero/flatlock/compare/1.0.0...1.1.0
 [1.0.1]: https://github.com/indexzero/flatlock/compare/1.0.0...1.0.1
