@@ -8,7 +8,8 @@
   },
   "npm": {
     "publish": true,
-    "provenance": true
+    "provenance": true,
+    "skipChecks": true
   },
   "github": {
     "release": false
