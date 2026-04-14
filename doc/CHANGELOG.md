@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-04-14
+
 ### 🆕 Added
 - **npm lockfileVersion 1 support**: `fromPackageLock` now parses v1 lockfiles by falling back to a new `fromDependenciesTree` generator when the `packages` map is absent. v1 lockfiles use a nested `dependencies` tree instead of the flat `packages` map — `fromDependenciesTree` walks the tree iteratively and yields the same `Dependency` shape. The README already claimed v1 support; the parser now delivers on it.
 
@@ -173,7 +175,8 @@ Initial release of flatlock - the Matlock of lockfile parsers.
 - Designed for use cases that need package enumeration without dependency resolution: SBOM generation, vulnerability scanning, license compliance, integrity verification
 - For full dependency tree analysis ("why is X installed?"), use `@npmcli/arborist` instead
 
-[unreleased]: https://github.com/indexzero/flatlock/compare/1.5.1...HEAD
+[unreleased]: https://github.com/indexzero/flatlock/compare/1.6.0...HEAD
+[1.6.0]: https://github.com/indexzero/flatlock/compare/1.5.1...1.6.0
 [1.5.1]: https://github.com/indexzero/flatlock/compare/1.5.0...1.5.1
 [1.5.0]: https://github.com/indexzero/flatlock/compare/1.4.0...1.5.0
 [1.4.0]: https://github.com/indexzero/flatlock/compare/1.3.0...1.4.0
