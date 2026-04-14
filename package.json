@@ -61,8 +61,7 @@
     "check": "biome check src test && pnpm run build:types",
     "check:fix": "biome check --write src test",
     "build:ncc": "./bin/ncc.sh",
-    "prepublishOnly": "pnpm run build:types",
-    "release": "gh workflow run release.yml --repo indexzero/flatlock -f increment="
+    "prepublishOnly": "pnpm run build:types"
   },
   "dependencies": {
     "@yarnpkg/lockfile": "^1.1.0",
