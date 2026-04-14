@@ -2,12 +2,9 @@
  * @fileoverview Comprehensive tests for npm lockfile parsers
  *
  * Tests cover npm package-lock.json formats:
- * - v1 (legacy dependencies format - NOT supported, returns empty)
+ * - v1 (legacy dependencies tree format, parsed via fromDependenciesTree)
  * - v2 (current format with packages field)
  * - v3 (same as v2, optimized for npm 7+)
- *
- * Note: This parser only supports v2/v3 format (packages field).
- * v1 format uses dependencies field and is not supported.
  */
 
 import assert from 'node:assert/strict';
@@ -17,7 +14,7 @@ import { describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 // Public API
-import { fromPackageLock, parseLockfileKey } from '../../src/parsers/npm.js';
+import { fromDependenciesTree, fromPackageLock, parseLockfileKey } from '../../src/parsers/npm.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const decodedDir = join(__dirname, '..', 'decoded', 'npm');
@@ -125,13 +122,22 @@ describe('npm parsers', () => {
   // ============================================================================
   describe('fromPackageLock', () => {
     describe('[npm-01] version detection', () => {
-      test('returns empty for v1 format (uses dependencies, not packages)', () => {
+      test('parses v1 format via dependencies tree fallback', () => {
         const content = loadFixture('package-lock.json.v1');
         const deps = [...fromPackageLock(content)];
 
-        // v1 format uses dependencies field, not packages
-        // Our parser only supports v2/v3 (packages field)
-        assert.equal(deps.length, 0, 'v1 format should return empty (not supported)');
+        // v1 format falls back to fromDependenciesTree
+        assert.ok(deps.length > 0, `v1 should yield deps, got ${deps.length}`);
+
+        // Every dep should have name and version
+        for (const dep of deps) {
+          assert.ok(dep.name, 'Every dep should have name');
+          assert.ok(dep.version, 'Every dep should have version');
+        }
+
+        // Most deps should have integrity (the v1 fixture has them)
+        const withIntegrity = deps.filter(d => d.integrity);
+        assert.ok(withIntegrity.length > deps.length * 0.9, 'Most deps should have integrity');
       });
 
       test('parses v2 format', () => {
@@ -388,6 +394,213 @@ describe('npm parsers', () => {
           assert.ok(dep.version, 'Every dep should have version');
         }
       });
+    });
+  });
+
+  // ============================================================================
+  // fromDependenciesTree tests (v1 lockfile support)
+  // ============================================================================
+  describe('fromDependenciesTree', () => {
+    test('parses flat dependencies', () => {
+      const lockfile = {
+        lockfileVersion: 1,
+        dependencies: {
+          lodash: {
+            version: '4.17.21',
+            resolved: 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz',
+            integrity: 'sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ=='
+          },
+          express: {
+            version: '4.18.0',
+            resolved: 'https://registry.npmjs.org/express/-/express-4.18.0.tgz'
+          }
+        }
+      };
+
+      const deps = [...fromDependenciesTree(lockfile)];
+      assert.equal(deps.length, 2);
+      assert.equal(deps[0].name, 'lodash');
+      assert.equal(deps[0].version, '4.17.21');
+      assert.equal(deps[0].resolved, 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz');
+      assert.ok(deps[0].integrity);
+      assert.equal(deps[1].name, 'express');
+      assert.equal(deps[1].version, '4.18.0');
+    });
+
+    test('walks nested dependencies recursively', () => {
+      const lockfile = {
+        lockfileVersion: 1,
+        dependencies: {
+          base: {
+            version: '1.0.0',
+            resolved: 'https://registry.npmjs.org/base/-/base-1.0.0.tgz',
+            dependencies: {
+              'define-property': {
+                version: '1.0.0',
+                resolved: 'https://registry.npmjs.org/define-property/-/define-property-1.0.0.tgz',
+                dependencies: {
+                  'is-descriptor': {
+                    version: '1.0.0',
+                    resolved: 'https://registry.npmjs.org/is-descriptor/-/is-descriptor-1.0.0.tgz'
+                  }
+                }
+              }
+            }
+          }
+        }
+      };
+
+      const deps = [...fromDependenciesTree(lockfile)];
+      assert.equal(deps.length, 3);
+
+      const names = deps.map(d => d.name);
+      assert.ok(names.includes('base'));
+      assert.ok(names.includes('define-property'));
+      assert.ok(names.includes('is-descriptor'));
+    });
+
+    test('skips entries without version', () => {
+      const lockfile = {
+        lockfileVersion: 1,
+        dependencies: {
+          lodash: { version: '4.17.21' },
+          broken: {}
+        }
+      };
+
+      const deps = [...fromDependenciesTree(lockfile)];
+      assert.equal(deps.length, 1);
+      assert.equal(deps[0].name, 'lodash');
+    });
+
+    test('handles empty dependencies object', () => {
+      const lockfile = { lockfileVersion: 1, dependencies: {} };
+      const deps = [...fromDependenciesTree(lockfile)];
+      assert.equal(deps.length, 0);
+    });
+
+    test('handles missing dependencies field', () => {
+      const lockfile = { lockfileVersion: 1 };
+      const deps = [...fromDependenciesTree(lockfile)];
+      assert.equal(deps.length, 0);
+    });
+
+    test('accepts JSON string input', () => {
+      const content = JSON.stringify({
+        lockfileVersion: 1,
+        dependencies: {
+          lodash: { version: '4.17.21' }
+        }
+      });
+
+      const deps = [...fromDependenciesTree(content)];
+      assert.equal(deps.length, 1);
+    });
+
+    test('yields resolved when present', () => {
+      const lockfile = {
+        lockfileVersion: 1,
+        dependencies: {
+          lodash: {
+            version: '4.17.21',
+            resolved: 'https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz'
+          }
+        }
+      };
+
+      const deps = [...fromDependenciesTree(lockfile)];
+      assert.equal(deps[0].resolved, 'https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz');
+    });
+
+    test('omits resolved when absent', () => {
+      const lockfile = {
+        lockfileVersion: 1,
+        dependencies: {
+          lodash: { version: '4.17.21' }
+        }
+      };
+
+      const deps = [...fromDependenciesTree(lockfile)];
+      assert.equal(deps[0].resolved, undefined);
+    });
+
+    test('parses v1 fixture with correct count', () => {
+      const content = loadFixture('package-lock.json.v1');
+      const deps = [...fromDependenciesTree(content)];
+
+      // The v1 fixture (meteor-guide) has 345 top-level + 273 nested = 618 total
+      assert.ok(deps.length > 300, `Expected >300 deps, got ${deps.length}`);
+
+      // Verify structure
+      for (const dep of deps) {
+        assert.ok(dep.name, 'Every dep should have name');
+        assert.ok(dep.version, 'Every dep should have version');
+      }
+
+      // Most should have resolved
+      const withResolved = deps.filter(d => d.resolved);
+      assert.ok(withResolved.length > deps.length * 0.9, 'Most deps should have resolved');
+    });
+
+    test('fromPackageLock delegates to fromDependenciesTree for v1', () => {
+      const lockfile = {
+        lockfileVersion: 1,
+        dependencies: {
+          lodash: {
+            version: '4.17.21',
+            resolved: 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz'
+          }
+        }
+      };
+
+      // fromPackageLock should fall back to fromDependenciesTree
+      const viaPL = [...fromPackageLock(lockfile)];
+      const viaDT = [...fromDependenciesTree(lockfile)];
+
+      assert.equal(viaPL.length, viaDT.length);
+      assert.deepEqual(
+        viaPL.map(d => `${d.name}@${d.version}`),
+        viaDT.map(d => `${d.name}@${d.version}`)
+      );
+    });
+
+    test('fromPackageLock prefers packages over dependencies for v2', () => {
+      // v2 lockfiles have both packages and dependencies
+      // fromPackageLock should use packages, not dependencies
+      const lockfile = {
+        lockfileVersion: 2,
+        packages: {
+          '': { name: 'root', version: '1.0.0' },
+          'node_modules/lodash': { version: '4.17.21' }
+        },
+        dependencies: {
+          lodash: { version: '4.17.20' } // different version to prove packages wins
+        }
+      };
+
+      const deps = [...fromPackageLock(lockfile)];
+      assert.equal(deps.length, 1);
+      assert.equal(deps[0].version, '4.17.21', 'Should use packages version, not dependencies');
+    });
+
+    test('handles scoped packages in v1 format', () => {
+      const lockfile = {
+        lockfileVersion: 1,
+        dependencies: {
+          '@babel/core': {
+            version: '7.23.0',
+            resolved: 'https://registry.npmjs.org/@babel/core/-/core-7.23.0.tgz'
+          },
+          '@types/node': {
+            version: '20.0.0'
+          }
+        }
+      };
+
+      const deps = [...fromDependenciesTree(lockfile)];
+      assert.equal(deps.length, 2);
+      assert.ok(deps.some(d => d.name === '@babel/core'));
+      assert.ok(deps.some(d => d.name === '@types/node'));
     });
   });
 });
