@@ -26,7 +26,13 @@ export { Type, detectType };
 export { Ok, Err };
 
 // Re-export individual parsers
-export { fromDependenciesTree, fromPackageLock, fromPnpmLock, fromYarnClassicLock, fromYarnBerryLock };
+export {
+  fromDependenciesTree,
+  fromPackageLock,
+  fromPnpmLock,
+  fromYarnClassicLock,
+  fromYarnBerryLock
+};
 
 // Re-export FlatlockSet class
 export { FlatlockSet };
