@@ -1,0 +1,22 @@
+{
+  "git": {
+    "tagName": "${version}",
+    "commitMessage": "chore: release ${version}",
+    "tagMatch": "[0-9]*.[0-9]*.[0-9]*",
+    "requireCleanWorkingDir": true,
+    "push": true
+  },
+  "npm": {
+    "publish": true,
+    "provenance": true
+  },
+  "github": {
+    "release": false
+  },
+  "plugins": {
+    "@release-it/keep-a-changelog": {
+      "filename": "doc/CHANGELOG.md",
+      "strictLatest": false
+    }
+  }
+}
