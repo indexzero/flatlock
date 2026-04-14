@@ -108,7 +108,8 @@ Each yielded package has:
   name: string;      // Package name (e.g., "@babel/core")
   version: string;   // Resolved version (e.g., "7.23.0")
   integrity?: string; // Integrity hash (sha512, sha384, sha256, sha1)
-  resolved?: string;  // Download URL
+  resolved?: string;  // Download URL (registry or private)
+  link?: boolean;     // True if this is a workspace symlink
 }
 ```
 
