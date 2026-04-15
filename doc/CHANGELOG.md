@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Fixed
+- **v1 lockfile detection without `lockfileVersion`**: `detectType` now recognizes v1 lockfiles and shrinkwrap files that omit the `lockfileVersion` field. Previously these files failed content-based detection with "Unable to detect lockfile type." The parser already handled them correctly — only routing was broken.
+
 ## [1.6.0] - 2026-04-14
 
 ### 🆕 Added

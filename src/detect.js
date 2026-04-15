@@ -24,8 +24,19 @@ export const Type = Object.freeze({
 function tryParseNpm(content) {
   try {
     const parsed = JSON.parse(content);
-    // Must have lockfileVersion as a number at root level
-    return typeof parsed.lockfileVersion === 'number';
+    // v2/v3: lockfileVersion as a number at root level
+    if (typeof parsed.lockfileVersion === 'number') return true;
+    // v1 lockfiles and shrinkwraps often omit lockfileVersion entirely.
+    // Detect them by checking for a dependencies tree with object values
+    // (package.json dependencies are version-range strings, not objects).
+    if (parsed.dependencies && typeof parsed.dependencies === 'object') {
+      for (const value of Object.values(parsed.dependencies)) {
+        if (value && typeof value === 'object' && 'version' in value) {
+          return true;
+        }
+      }
+    }
+    return false;
   } catch {
     return false;
   }

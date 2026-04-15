@@ -38,6 +38,52 @@ describe('flatlock', () => {
       assert.equal(type, flatlock.Type.NPM);
     });
 
+    test('detects npm v1 lockfile without lockfileVersion', () => {
+      const content = JSON.stringify({
+        name: 'my-project',
+        version: '1.0.0',
+        dependencies: {
+          lodash: {
+            version: '4.17.21',
+            resolved: 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz',
+            integrity: 'sha512-v2kDE=='
+          }
+        }
+      });
+      const type = flatlock.detectType({ content });
+      assert.equal(type, flatlock.Type.NPM);
+    });
+
+    test('detects npm shrinkwrap without lockfileVersion', () => {
+      const content = JSON.stringify({
+        name: 'my-project',
+        version: '1.0.0',
+        dependencies: {
+          express: {
+            version: '4.18.0',
+            resolved: 'https://registry.npmjs.org/express/-/express-4.18.0.tgz'
+          }
+        }
+      });
+      const type = flatlock.detectType({ path: 'npm-shrinkwrap.json', content });
+      assert.equal(type, flatlock.Type.NPM);
+    });
+
+    test('does not detect package.json as npm lockfile', () => {
+      // package.json has string dependency values, not objects
+      const content = JSON.stringify({
+        name: 'my-project',
+        version: '1.0.0',
+        dependencies: {
+          lodash: '^4.17.21',
+          express: '~4.18.0'
+        }
+      });
+      assert.throws(() => {
+        flatlock.detectType({ content });
+      }, /Unable to detect lockfile type/);
+    });
+
     test('detects pnpm from content only (no path)', () => {
       const content = 'lockfileVersion: 6.0\npackages:\n  /lodash@4.17.21:';
       const type = flatlock.detectType({ content });
@@ -167,6 +213,32 @@ packages:
         const deps = [...flatlock.fromString(content, { path: 'package-lock.json' })];
 
         assert.ok(deps.length > 0, 'Should have dependencies');
+      });
+
+      test('parses v1 lockfile without lockfileVersion via fromString', () => {
+        const content = JSON.stringify({
+          name: 'my-project',
+          version: '1.0.0',
+          dependencies: {
+            lodash: {
+              version: '4.17.21',
+              resolved: 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz',
+              integrity: 'sha512-v2kDE=='
+            },
+            express: {
+              version: '4.18.0',
+              resolved: 'https://registry.npmjs.org/express/-/express-4.18.0.tgz'
+            }
+          }
+        });
+
+        // Should auto-detect as npm and parse via dependencies tree fallback
+        const deps = [...flatlock.fromString(content)];
+        assert.equal(deps.length, 2);
+        assert.equal(deps[0].name, 'lodash');
+        assert.equal(deps[0].version, '4.17.21');
+        assert.equal(deps[1].name, 'express');
+        assert.equal(deps[1].version, '4.18.0');
       });
 
       test('fromPackageLock parses directly', () => {
