@@ -94,7 +94,7 @@
   "packageManager": "pnpm@10.25.0",
   "pnpm": {
     "overrides": {
-      "tar": ">=7.5.3"
+      "tar": ">=7.5.13"
     }
   },
   "engines": {
